@@ -39,27 +39,32 @@ optional arguments:
 
 
 Example 1 
+
 python federated_sample_CNN_CFA-GE.py -l1 0.025 -l2 0.02 -K 40 -N 2 -T 40 -ro 0.99
 Use convolutional layers followed by a FC layer (CNN model, see paper) and CFA-GE federated learning algorithm. 
 Sets gradient learning rate for hidden layer to 0.025, for output layer to 0.02, K=40 devices, N=2 neighbors per device, MEWMA parameter 0.99 (see paper), number of training epochs to T = 40
 
 
 Example 2
+
 python federated_thzdata_sample_2NN_CFA.py - K 30 -N 2
 Use FC layers (2NN model, see paper) and CFA federated learning algorithm. Sets K=30 devices, N=2 neighbors per device, number of training epoch is set to default T = 120
 
 
 PYTHON PACKAGE (SEE ALSO THE CODE SCRIPTS FOR FURTHER DETAILS)
+
 CFA
+
 To initialize CFA use constructor:
     consensus_p = CFA_process(federated, tot_devices, device_id, neighbors_number)
 To apply/update Federated weights use:
     consensus_p.getFederatedWeight( ... )		
 
 CFA-GE
-To initialize CFA-GE
+
+To initialize CFA-GE:
     consensus_p = CFA_ge_process(federated, tot_devices, iii, neighbors_number, args.ro)
-Set ML model parameters (CNN model)
+Set ML model parameters (CNN model):
     consensus_p.setCNNparameters(filter, number, pooling, stride, multip, classes, input_data)
 Alternatively 2NN model can be used:
     consensus_p.set2NNparameters(intermediate_nodes, classes, input_data)
