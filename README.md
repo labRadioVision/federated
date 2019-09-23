@@ -49,7 +49,7 @@ python federated_thzdata_sample_2NN_CFA.py - K 30 -N 2
 Use FC layers (2NN model, see paper) and CFA federated learning algorithm. Sets K=30 devices, N=2 neighbors per device, number of training epoch is set to default T = 120
 
 
-PYTHON PACKAGE
+PYTHON PACKAGE (SEE ALSO THE CODE SCRIPTS FOR FURTHER DETAILS)
 CFA
 To initialize CFA use constructor:
     consensus_p = CFA_process(federated, tot_devices, device_id, neighbors_number)
