@@ -14,7 +14,7 @@ python federated_sample_XXX_YYY.py -h
 for help 
 
 
-federated_thzdata_sample_XXX_CFA-GE.py [-h] [-l1 L1] [-l2 L2] [-mu MU]
+federated_sample_XXX_CFA-GE.py [-h] [-l1 L1] [-l2 L2] [-mu MU]
                                 [-eps EPS] [-K K] [-N N] [-T T]
                                 [-ro RO]
 
@@ -31,7 +31,7 @@ optional arguments:
   -T T        sets the number of training epochs
   -ro RO      sets the hyperparameter for MEWMA
 
-federated_thzdata_sample_XXX_CFA.py [-h] [-mu MU]
+federated_sample_XXX_CFA.py [-h] [-mu MU]
                                 [-eps EPS] [-K K] [-N N] [-T T]
 
 optional arguments:
@@ -56,7 +56,7 @@ Sets gradient learning rate for hidden layer to 0.025, for output layer to 0.02,
 
 Example 2
 
-python federated_thzdata_sample_2NN_CFA.py - K 30 -N 2
+python federated_sample_2NN_CFA.py - K 30 -N 2
 
 Use FC layers (2NN model, see paper) and CFA federated learning algorithm. Sets K=30 devices, N=2 neighbors per device, number of training epoch is set to default T = 120
 
@@ -70,6 +70,9 @@ To initialize CFA use constructor:
     
 To apply/update Federated weights use:
     consensus_p.getFederatedWeight( ... )		
+
+To enable/disable consensus (dynamically)
+    consensus_p.disable_consensus( ... True/False ... )
 
 CFA-GE
 
