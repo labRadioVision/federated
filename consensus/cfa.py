@@ -99,6 +99,9 @@ class CFA_process:
         self.neighbors = neighbors # neighbors number (given the network topology)
         self.neighbor_vec = self.get_connectivity(ii_saved_local, neighbors, devices) # neighbor list
 
+    def disable_consensus(self, federated):
+        self.federated = federated
+
     def getFederatedWeight(self, n_W_l1, n_W_l2, n_b_l1, n_b_l2, epoch, v_loss, eps_t_control):
         if (self.federated):
             if self.devices > 1:  # multihop topology
@@ -141,6 +144,9 @@ class CFA_process:
                     n_up_l2 = np.squeeze(np.asarray(n_up_l2))
 
         else:
+            sio.savemat('datamat{}_{}.mat'.format(self.ii_saved_local, epoch), {
+                "weights1": n_W_l1, "biases1": n_b_l1, "weights2": n_W_l2, "biases2": n_b_l2, "epoch": epoch,
+                "loss_sample": v_loss})
             W_up_l1 = n_W_l1
             n_up_l1 = n_b_l1
             W_up_l2 = n_W_l2
