@@ -1,7 +1,7 @@
 Available also on 
 https://test.pypi.org/project/consensus-stefano/0.0.1/
 
-Usage example for federated_sample_XXX_YYY.py.
+# Usage example for federated_sample_XXX_YYY.py.
 
 - XXX refers to the ML model. Options: CNN, 2NN
 
@@ -13,7 +13,7 @@ python federated_sample_XXX_YYY.py -h
 
 for help 
 
-
+# CFA-GE: example Python script
 federated_sample_XXX_CFA-GE.py [-h] [-l1 L1] [-l2 L2] [-mu MU]
                                 [-eps EPS] [-K K] [-N N] [-T T]
                                 [-ro RO]
@@ -39,6 +39,7 @@ optional arguments:
   
   -ro RO      sets the hyperparameter for MEWMA
 
+# CFA: example Python script
 federated_sample_XXX_CFA.py [-h] [-mu MU]
                                 [-eps EPS] [-K K] [-N N] [-T T]
 
@@ -56,7 +57,7 @@ optional arguments:
   
   -T T        sets the number of training epochs
 
-# alternating federated averaging and consensus: example Python script
+# Alternating federated averaging and consensus: example Python script
 federated_sample_CNN_CFA_FA.py [-h] [-mu MU] [-eps EPS] [-eps2 EPS2]
                                       [-K K] [-N N] [-T T] [-S S] [-Ser SER]
                                       [-Con CON]
@@ -83,7 +84,7 @@ optional arguments:
   -Con CON    sets the number of epochs for consensus operations
 
 
-Example 1 
+# Example 1 
 
 python federated_sample_CNN_CFA-GE.py -l1 0.025 -l2 0.02 -K 40 -N 2 -T 40 -ro 0.99
 
@@ -92,16 +93,16 @@ Use convolutional layers followed by a FC layer (CNN model, see paper) and CFA-G
 Sets gradient learning rate for hidden layer to 0.025, for output layer to 0.02, K=40 devices, N=2 neighbors per device, MEWMA parameter 0.99 (see paper), number of training epochs to T = 40
 
 
-Example 2
+# Example 2
 
 python federated_sample_2NN_CFA.py - K 30 -N 2
 
 Use FC layers (2NN model, see paper) and CFA federated learning algorithm. Sets K=30 devices, N=2 neighbors per device, number of training epoch is set to default T = 120
 
 
-PYTHON PACKAGE (SEE ALSO THE CODE SCRIPTS FOR FURTHER DETAILS)
+# PYTHON PACKAGE (SEE ALSO THE CODE SCRIPTS FOR FURTHER DETAILS)
 
-CFA
+# CFA
 
 To initialize CFA use constructor:
     consensus_p = CFA_process(federated, tot_devices, device_id, neighbors_number)
@@ -112,7 +113,7 @@ To apply/update Federated weights use:
 To enable/disable consensus (dynamically)
     consensus_p.disable_consensus( ... True/False ... )
 
-CFA-GE
+# CFA-GE
 
 To initialize CFA-GE:
     consensus_p = CFA_ge_process(federated, tot_devices, iii, neighbors_number, args.ro)
