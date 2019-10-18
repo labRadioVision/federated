@@ -24,12 +24,19 @@ optional arguments:
   
   -l1 L1      sets the learning rate (gradient exchange) for convolutional
               layer
+              
   -l2 L2      sets the learning rate (gradient exchange) for FC layer
+  
   -mu MU      sets the learning rate for local SGD
+  
   -eps EPS    sets the mixing parameters for model averaging (CFA)
+  
   -K K        sets the number of network devices
+  
   -N N        sets the number of neighbors per device
+  
   -T T        sets the number of training epochs
+  
   -ro RO      sets the hyperparameter for MEWMA
 
 federated_sample_XXX_CFA.py [-h] [-mu MU]
@@ -38,12 +45,42 @@ federated_sample_XXX_CFA.py [-h] [-mu MU]
 optional arguments:
 
   -h, --help  show this help message and exit
+  
   -mu MU      sets the learning rate for local SGD
+  
   -eps EPS    sets the mixing parameters for model averaging (CFA)
+  
   -K K        sets the number of network devices
+  
   -N N        sets the number of neighbors per device
+  
   -T T        sets the number of training epochs
 
+# alternating federated averaging and consensus: example Python script
+federated_sample_CNN_CFA_FA.py [-h] [-mu MU] [-eps EPS] [-eps2 EPS2]
+                                      [-K K] [-N N] [-T T] [-S S] [-Ser SER]
+                                      [-Con CON]
+
+optional arguments:
+  -h, --help  show this help message and exit
+  
+  -mu MU      sets the learning rate for local SGD
+  
+  -eps EPS    sets the mixing parameters for model averaging (CFA)
+  
+  -eps2 EPS2  sets the updated parameters for server-side federated learning
+  
+  -K K        sets the number of network devices
+  
+  -N N        sets the number of neighbors per device
+  
+  -T T        sets the number of training epochs
+  
+  -S S        sets the frequency of server-side computation
+  
+  -Ser SER    sets the number of epochs for server-side computation
+  
+  -Con CON    sets the number of epochs for consensus operations
 
 
 Example 1 
