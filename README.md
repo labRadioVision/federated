@@ -1,5 +1,5 @@
 Available also on 
-https://test.pypi.org/project/consensus-stefano/0.0.1/
+https://test.pypi.org/project/consensus-stefano/0.2/
 
 # Usage example for federated_sample_XXX_YYY.py.
 
