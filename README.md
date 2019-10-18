@@ -21,6 +21,7 @@ federated_sample_XXX_CFA-GE.py [-h] [-l1 L1] [-l2 L2] [-mu MU]
 optional arguments:
 
   -h, --help  show this help message and exit
+  
   -l1 L1      sets the learning rate (gradient exchange) for convolutional
               layer
   -l2 L2      sets the learning rate (gradient exchange) for FC layer
