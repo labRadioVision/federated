@@ -8,7 +8,7 @@ import math
 import time
 from matplotlib.pyplot import pause
 import os
-import matlab.engine
+#import matlab.engine
 import glob
 
 class CFA_process:
@@ -32,6 +32,20 @@ class CFA_process:
     #         index_ii = np.where(sets_neighbors == ii_saved_local)
     #         sets_neighbors_final = np.delete(sets_neighbors, index_ii)
     #     return sets_neighbors_final
+
+    def getMobileNetwork_connectivity(self, ii_saved_local, neighbors, devices, epoch):
+        graph_index = sio.loadmat('consensus/vGraph.mat')
+        dev = np.arange(1, devices + 1)
+        graph_mobile = graph_index['graph']
+        set = graph_mobile[ii_saved_local,:,epoch]
+        tot_neighbors = np.sum(set, dtype=np.uint8)
+        sets_neighbors_final = np.zeros(tot_neighbors, dtype=np.uint8)
+        counter = 0
+        for kk in range(devices):
+            if set[kk] == 1:
+                sets_neighbors_final[counter] = kk
+                counter = counter + 1
+        return sets_neighbors_final
 
     # compute weights for CFA
     def federated_weights_computing2(self, filename, filename2, ii, ii2, epoch, devices, neighbors, eps_t_control):
@@ -95,13 +109,10 @@ class CFA_process:
         return weights_l1, biases_l1, weights_l2, biases_l2
 
     def __init__(self, federated, devices, ii_saved_local, neighbors):
-        self.eng = matlab.engine.start_matlab()
         self.federated = federated # true for federation active
         self.devices = devices # number of devices
         self.ii_saved_local = ii_saved_local # device index
         self.neighbors = neighbors # max. neighbors number (given the network topology)
-        mat_content = self.eng.getMobileNetwork_connectivity(self.ii_saved_local, self.neighbors, self.devices, 0)
-        self.neighbor_vec = np.asarray(mat_content[0], dtype=int)
         # returns neighbors at time/epoch '0' for node 'ìi_saved_local', assuming the max number of neighbors 'neighbors'
         # and the tot number of devices in the network 'devices' ('neighbors' and 'devices' might be not used=
 
@@ -122,9 +133,9 @@ class CFA_process:
                     sio.savemat('temp_datamat{}_{}.mat'.format(self.ii_saved_local, epoch), {
                         "weights1": n_W_l1, "biases1": n_b_l1, "weights2": n_W_l2, "biases2": n_b_l2, "epoch": epoch, "loss_sample": v_loss})
                     # neighbor_vec = get_connectivity(self.ii_saved_local, self.neighbors, self.devices)
-                    mat_content = self.eng.getMobileNetwork_connectivity(self.ii_saved_local, self.neighbors, self.devices, epoch) # update neighbors at epoch 'epoch' according to the network mobility pattern
-                    print(mat_content[0])
-                    self.neighbor_vec = np.asarray(mat_content[0], dtype=int)
+                    mat_content = self.getMobileNetwork_connectivity(self.ii_saved_local, self.neighbors, self.devices, epoch) # update neighbors at epoch 'epoch' according to the network mobility pattern
+                    print(mat_content)
+                    self.neighbor_vec = np.asarray(mat_content, dtype=int)
                     for neighbor_index in range(self.neighbor_vec.size):
                         while not os.path.isfile(
                                 'datamat{}_{}.mat'.format(self.neighbor_vec[neighbor_index], epoch - 1)) or not os.path.isfile(

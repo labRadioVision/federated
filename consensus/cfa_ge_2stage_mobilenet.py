@@ -9,28 +9,22 @@ import time
 from matplotlib.pyplot import pause
 import os
 import glob
-import matlab.engine
+# import matlab.engine
 
 class CFA_ge_process:
     # sets neighbor indexes for k-regular networks (number of neighbors is 'neighbors'
-    def get_connectivity(self, ii_saved_local, neighbors, devices):
-        if (ii_saved_local == 0):
-            sets_neighbors_final = np.arange(ii_saved_local + 1, ii_saved_local + neighbors + 1)
-        elif (ii_saved_local == devices - 1):
-            sets_neighbors_final = np.arange(ii_saved_local - neighbors, ii_saved_local)
-        elif (ii_saved_local >= math.ceil(neighbors / 2)) and (
-                ii_saved_local <= devices - math.ceil(neighbors / 2) - 1):
-            sets_neighbors = np.arange(ii_saved_local - math.floor(neighbors / 2),
-                                       ii_saved_local + math.floor(neighbors / 2) + 1)
-            index_ii = np.where(sets_neighbors == ii_saved_local)
-            sets_neighbors_final = np.delete(sets_neighbors, index_ii)
-        else:
-            if (ii_saved_local - math.ceil(neighbors / 2) < 0):
-                sets_neighbors = np.arange(0, neighbors + 1)
-            else:
-                sets_neighbors = np.arange(devices - neighbors - 1, devices)
-            index_ii = np.where(sets_neighbors == ii_saved_local)
-            sets_neighbors_final = np.delete(sets_neighbors, index_ii)
+    def getMobileNetwork_connectivity(self, ii_saved_local, neighbors, devices, epoch):
+        graph_index = sio.loadmat('consensus/vGraph.mat')
+        dev = np.arange(1, devices + 1)
+        graph_mobile = graph_index['graph']
+        set = graph_mobile[ii_saved_local,:,epoch]
+        tot_neighbors = np.sum(set, dtype=np.uint8)
+        sets_neighbors_final = np.zeros(tot_neighbors, dtype=np.uint8)
+        counter = 0
+        for kk in range(devices):
+            if set[kk] == 1:
+                sets_neighbors_final[counter] = kk
+                counter = counter + 1
         return sets_neighbors_final
 
     def conv1d(self, x, W, b, strides=1):
@@ -102,13 +96,12 @@ class CFA_ge_process:
         return weights_l1, biases_l1, weights_l2, biases_l2
 
     def __init__(self, federated, devices, ii_saved_local, neighbors, mewma):
-        self.eng = matlab.engine.start_matlab()
         self.federated = federated # true for federation active
         self.devices = devices # number of devices
         self.ii_saved_local = ii_saved_local # device index
         self.neighbors = neighbors # neighbors number (given the network topology)
         self.mewma = mewma # MEWMA parameter for gradients exchange (see paper)
-        mat_content = self.eng.getMobileNetwork_connectivity(self.ii_saved_local, self.neighbors, self.devices, 0)
+        mat_content = self.getMobileNetwork_connectivity(self.ii_saved_local, self.neighbors, self.devices, 0)
         self.neighbor_vec = np.asarray(mat_content[0], dtype=int)
 
     def setCNNparameters(self, filter, number, pooling, stride, multip, classes, input_data):
@@ -140,7 +133,7 @@ class CFA_ge_process:
             W_ext_c_l1 = tf.placeholder(tf.float32, [self.filter, 1, self.number])
             b_ext_c_l1 = tf.placeholder(tf.float32, [self.number])
 
-            W_ext_c_l2 = tf.placeholder(tf.float32, [self.multip * self.number, 8])
+            W_ext_c_l2 = tf.placeholder(tf.float32, [self.multip * self.number, self.classes])
             b_ext_c_l2 = tf.placeholder(tf.float32, [self.classes])
 
             # Construct model Layer #1 CNN 1d, Layer #2 FC
@@ -191,11 +184,11 @@ class CFA_ge_process:
                     sio.savemat('temp_datamat{}_{}.mat'.format(self.ii_saved_local, epoch), {
                         "weights1": n_W_l1, "biases1": n_b_l1, "weights2": n_W_l2, "biases2": n_b_l2, "epoch": epoch,
                         "loss_sample": v_loss})
-                    mat_content = self.eng.getMobileNetwork_connectivity(self.ii_saved_local, self.neighbors,
+                    mat_content = self.getMobileNetwork_connectivity(self.ii_saved_local, self.neighbors,
                                                                          self.devices,
                                                                          epoch)  # update neighbors at epoch 'epoch' according to the network mobility pattern
-                    print(mat_content[0])
-                    self.neighbor_vec = np.asarray(mat_content[0], dtype=int)
+                    print(mat_content)
+                    self.neighbor_vec = np.asarray(mat_content, dtype=int)
                     for neighbor_index in range(self.neighbor_vec.size):
                         while not os.path.isfile(
                                 'datamat{}_{}.mat'.format(self.neighbor_vec[neighbor_index],
@@ -308,6 +301,17 @@ class CFA_ge_process:
                         n_up_l1 = np.squeeze(np.asarray(mathcontent['biases1']))
                         W_up_l2 = np.asarray(mathcontent['weights2'])
                         n_up_l2 = np.squeeze(np.asarray(mathcontent['biases2']))
+
+                    if self.ML_model == 1:
+                        W_l1_saved = np.zeros([self.filter, 1, self.number,self.neighbor_vec.size])
+                        W_l2_saved = np.zeros([self.multip * self.number, self.classes, self.neighbor_vec.size])
+                        n_l1_saved = np.zeros([self.number, self.neighbor_vec.size])
+                        n_l2_saved = np.zeros([self.classes, self.neighbor_vec.size])
+                    elif self.ML_model == 2:
+                        W_l1_saved = np.zeros([self.input_data, self.intermediate_nodes, self.neighbor_vec.size])
+                        W_l2_saved = np.zeros([self.intermediate_nodes, self.classes, self.neighbor_vec.size])
+                        n_l1_saved = np.zeros([self.intermediate_nodes, self.neighbor_vec.size])
+                        n_l2_saved = np.zeros([self.classes, self.neighbor_vec.size])
 
                     # update local model with neighbor gradients
                     for neighbor_index in range(self.neighbor_vec.size):
@@ -454,11 +458,11 @@ class CFA_ge_process:
                     sio.savemat('temp_datamat{}_{}.mat'.format(self.ii_saved_local, epoch), {
                         "weights1": n_W_l1, "biases1": n_b_l1, "weights2": n_W_l2, "biases2": n_b_l2, "epoch": epoch,
                         "loss_sample": v_loss})
-                    mat_content = self.eng.getMobileNetwork_connectivity(self.ii_saved_local, self.neighbors,
+                    mat_content = self.getMobileNetwork_connectivity(self.ii_saved_local, self.neighbors,
                                                                          self.devices,
                                                                          epoch)  # update neighbors at epoch 'epoch' according to the network mobility pattern
-                    print(mat_content[0])
-                    self.neighbor_vec = np.asarray(mat_content[0], dtype=int)
+                    print(mat_content)
+                    self.neighbor_vec = np.asarray(mat_content, dtype=int)
                     for neighbor_index in range(self.neighbor_vec.size):
                         while not os.path.isfile(
                                 'datamat{}_{}.mat'.format(self.neighbor_vec[neighbor_index], epoch - 1)) or not os.path.isfile(
@@ -571,6 +575,17 @@ class CFA_ge_process:
 
                     # waiting for other gradient updates
                     pause(5)
+
+                    if self.ML_model == 1:
+                        W_l1_saved = np.zeros([self.filter, 1, self.number,self.neighbor_vec.size])
+                        W_l2_saved = np.zeros([self.multip * self.number, self.classes, self.neighbor_vec.size])
+                        n_l1_saved = np.zeros([self.number, self.neighbor_vec.size])
+                        n_l2_saved = np.zeros([self.classes, self.neighbor_vec.size])
+                    elif self.ML_model == 2:
+                        W_l1_saved = np.zeros([self.input_data, self.intermediate_nodes, self.neighbor_vec.size])
+                        W_l2_saved = np.zeros([self.intermediate_nodes, self.classes, self.neighbor_vec.size])
+                        n_l1_saved = np.zeros([self.intermediate_nodes, self.neighbor_vec.size])
+                        n_l2_saved = np.zeros([self.classes, self.neighbor_vec.size])
 
                     # update local model with neighbor gradients
                     for neighbor_index in range(self.neighbor_vec.size):
