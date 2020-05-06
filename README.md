@@ -17,7 +17,7 @@ with:
 
 import tensorflow.compat.v1 as tf
 
-tf.disable_v2_behavior() # tf 2
+tf.disable_v2_behavior()
 
 Please check https://www.tensorflow.org/guide/migrate
 
