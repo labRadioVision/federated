@@ -9,10 +9,11 @@ https://test.pypi.org/project/consensus-stefano/0.3/
 
 Note: the code is written for tensorflow 1.13.1. To use the code with tensorflow 2.1.0 installed, please use the following workaround:
 
-Replace
+Replace:
+
 import tensorflow as tf
 
-with
+with:
 
 import tensorflow.compat.v1 as tf
 
