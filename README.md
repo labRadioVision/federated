@@ -7,6 +7,17 @@ https://test.pypi.org/project/consensus-stefano/0.3/
 
 - YYY refers to the consensus-based federated learning method. Options: CFA, CFA-GE
 
+Note: the code is written for tensorflow 1.13.1. To use the code with tensorflow 2.1.0 installed, please use the following workaround:
+
+Replace
+import tensorflow as tf
+
+with
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior() # tf 2
+
+Please check https://www.tensorflow.org/guide/migrate
+
 Run 
 
 python federated_sample_XXX_YYY.py -h 
