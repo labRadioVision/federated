@@ -13,7 +13,9 @@ Replace
 import tensorflow as tf
 
 with
+
 import tensorflow.compat.v1 as tf
+
 tf.disable_v2_behavior() # tf 2
 
 Please check https://www.tensorflow.org/guide/migrate
