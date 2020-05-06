@@ -1,7 +1,8 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 from keras.utils import to_categorical
 import numpy as np
-import tensorflow as tf
+# import tensorflow as tf
+import tensorflow.compat.v1 as tf # tf 2 v1 compatibility
 import datetime
 import scipy.io as sio
 import math
@@ -32,6 +33,7 @@ training_epochs = args.T
 batch_size = 5
 display_step = 10
 
+tf.disable_v2_behavior() # tf 2
 # convolutional 1D parameters
 filter = 16
 number = 8
