@@ -1,7 +1,8 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 from keras.utils import to_categorical
 import numpy as np
-import tensorflow as tf
+# import tensorflow as tf
+import tensorflow.compat.v1 as tf # tf 2 v1 compatibility
 import datetime
 import scipy.io as sio
 import math
@@ -22,6 +23,8 @@ parser.add_argument('-T', default=8, help="sets the number of training epochs", 
 parser.add_argument('-ro', default=0.99, help="sets the hyperparameter for MEWMA", type=float)
 parser.add_argument('-device_id', default=0, help="sets the device id (from 0 to ...)", type=int)
 args = parser.parse_args()
+
+tf.disable_v2_behavior() # tf 2
 
 # Parameters for learning rate optimization and batch size ##################
 
