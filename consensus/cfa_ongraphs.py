@@ -135,28 +135,22 @@ class CFA_process:
                 "weights1": weights_l1, "biases1": biases_l1, "weights2": weights_l2, "biases2": biases_l2})
         return weights_l1, biases_l1, weights_l2, biases_l2, parameters_received, time_info
 
-    def __init__(self, federated, devices, ii_saved_local, neighbors, randomized, graph, compression):
+    def __init__(self, federated, devices, ii_saved_local, neighbors, graph, compression, consensus_mode):
         self.federated = federated # true for federation active
         self.devices = devices # number of devices
         self.ii_saved_local = ii_saved_local # device index
         self.compression = compression
-        self.neighbors = neighbors # neighbors number (given the network topology)
         self.max_neighbors = neighbors # sets the max number of neighbors from inputs
-        if graph == 0:  # use k-degree network
-            self.neighbor_vec = self.get_connectivity(ii_saved_local, neighbors, devices) # neighbor list
-        else:
-            mat_content = self.getMobileNetwork_connectivity(self.ii_saved_local, self.max_neighbors, self.devices, graph - 1)
-            print(mat_content)
-            self.neighbor_vec = np.asarray(mat_content[0], dtype=int)
-            self.neighbors = self.neighbor_vec.size
-        self.randomized = randomized
         self.graph = graph
+        self.neighbor_vec = np.asarray(0, dtype=int)
+        self.neighbors = self.neighbor_vec.size
+        self.consensus_mode = consensus_mode
 
     def disable_consensus(self, federated):
         self.federated = federated
 
-    def getFederatedWeight(self, n_W_l1, n_W_l2, n_b_l1, n_b_l2, epoch, v_loss, eps_t_control):
-        if (self.federated):
+    def getFederatedWeight(self, n_W_l1, n_W_l2, n_b_l1, n_b_l2, epoch, v_loss, eps_t_control, current_neighbor, stop_consensus):
+        if self.federated:
             if self.devices > 1:  # multihop topology
                 if epoch == 0:
                     W_up_l1 = n_W_l1
@@ -170,49 +164,63 @@ class CFA_process:
                     time_info = 0
                     compression_computational_time = 0
                 else:
+                    # temp datamat : saves temporary model parameters
+                    # obtained by model averaging over a fraction of the total neighbors
                     sio.savemat('temp_datamat{}_{}.mat'.format(self.ii_saved_local, epoch), {
                         "weights1": n_W_l1, "biases1": n_b_l1, "weights2": n_W_l2, "biases2": n_b_l2, "epoch": epoch, "loss_sample": v_loss})
                     # neighbor_vec = get_connectivity(self.ii_saved_local, self.neighbors, self.devices)
 
-                    if self.graph == 0:
-                        if self.randomized == True: # use a time-varying graph with connectivity in vGraph.mat
-                            self.neighbor_vec = self.getMobileNetwork_connectivity(self.ii_saved_local, self.max_neighbors,  self.devices, epoch)
-                            print(self.neighbor_vec)
-                        else:
-                            self.neighbor_vec = self.get_connectivity(self.ii_saved_local, self.neighbors, self.devices)
+                    if self.graph == 0: # use k-degree network
+                        self.neighbor_vec = self.get_connectivity(self.ii_saved_local, self.neighbors, self.devices)  # neighbor list
                     else:
-                        mat_content = self.getMobileNetwork_connectivity(self.ii_saved_local, self.max_neighbors,  self.devices, self.graph - 1)  # fixed network, replace by updating neighbors at epoch 'epoch' according to the network mobility pattern
-                        print(mat_content)
-                        self.neighbor_vec = np.asarray(mat_content, dtype=int)
-                        self.neighbors = self.neighbor_vec.size
+                        if self.consensus_mode == 0:
+                            if stop_consensus:
+                                self.neighbor_vec = np.asarray(current_neighbor, dtype=int)
+                            else:
+                                self.neighbor_vec = np.zeros(1, dtype=int)
+                                self.neighbor_vec[0] = current_neighbor
+                        elif self.consensus_mode == 1:
+                            self.neighbor_vec = np.asarray(current_neighbor, dtype=int)
+                        else:
+                            print("Unknown consensus mode profile, exiting")
+                            exit(1)
+                    self.neighbors = self.neighbor_vec.size
+
                     ################ reception time #######################
                     time_info = 0
                     # frame_time = 10e-3 # ieee 802.15.4
                     # payload = 1000 # bytes MPDU
                     # binary_cod = 32
-                    # success_ p =0.99
+                    # success_ p = 0.99
                     ############################################
-                    for neighbor_index in range(self.neighbors):
-                        start_time = time.time()
-                        while not os.path.isfile(
+                    if self.neighbors > 0: # then do model averaging
+                        for neighbor_index in range(self.neighbors):
+                            start_time = time.time()
+                            while not os.path.isfile(
                                 'datamat{}_{}.mat'.format(self.neighbor_vec[neighbor_index], epoch - 1)) or not os.path.isfile(
                                 'temp_datamat{}_{}.mat'.format(self.ii_saved_local, epoch)):
-                            # print('Waiting for datamat{}_{}.mat'.format(self.ii_saved_local - 1, epoch - 1))
-                            pause(1)
-                        time_info = time_info + time.time() - start_time
-                        [W_up_l1, n_up_l1, W_up_l2, n_up_l2, parameters_received, time_info_neighbor] = self.federated_weights_computing2(
-                            'datamat{}_{}.mat'.format(self.neighbor_vec[neighbor_index], epoch - 1),
-                            'temp_datamat{}_{}.mat'.format(self.ii_saved_local, epoch), self.ii_saved_local,
-                            self.neighbor_vec[neighbor_index],
-                            epoch, self.devices, self.neighbors, eps_t_control)
-                        # time_info = time_info + math.ceil(parameters_received * binary_cod / payload) * frame_time
-                        time_info = time_info + time_info_neighbor
-                        pause(5)
-
-                    W_up_l1 = np.asarray(W_up_l1)
-                    n_up_l1 = np.squeeze(np.asarray(n_up_l1))
-                    W_up_l2 = np.asarray(W_up_l2)
-                    n_up_l2 = np.squeeze(np.asarray(n_up_l2))
+                                # print('Waiting for datamat{}_{}.mat'.format(self.neighbor_vec[neighbor_index], epoch - 1))
+                                # print('Waiting for temp_datamat{}_{}.mat'.format(self.ii_saved_local, epoch))
+                                pause(1)
+                            time_info = time_info + time.time() - start_time
+                            [W_up_l1, n_up_l1, W_up_l2, n_up_l2, parameters_received, time_info_neighbor] = self.federated_weights_computing2(
+                                'datamat{}_{}.mat'.format(self.neighbor_vec[neighbor_index], epoch - 1),
+                                'temp_datamat{}_{}.mat'.format(self.ii_saved_local, epoch), self.ii_saved_local,
+                                self.neighbor_vec[neighbor_index],
+                                epoch, self.devices, self.neighbors, eps_t_control)
+                            # time_info = time_info + math.ceil(parameters_received * binary_cod / payload) * frame_time
+                            time_info = time_info + time_info_neighbor
+                            pause(5)
+                        W_up_l1 = np.asarray(W_up_l1)
+                        n_up_l1 = np.squeeze(np.asarray(n_up_l1))
+                        W_up_l2 = np.asarray(W_up_l2)
+                        n_up_l2 = np.squeeze(np.asarray(n_up_l2))
+                    else:
+                        W_up_l1 = n_W_l1
+                        n_up_l1 = n_b_l1
+                        W_up_l2 = n_W_l2
+                        n_up_l2 = n_b_l2
+                        time_info = 0
 
                     # Compression
                     start_time = time.time()
@@ -269,19 +277,18 @@ class CFA_process:
                     else:
                         compression_computational_time = 0
 
+                    # print(stop_consensus)
                     time_info = time_info + compression_computational_time
-
-                    try:
-                        sio.savemat('datamat{}_{}.mat'.format(self.ii_saved_local, epoch), {
-                            "weights1": n_W_l1, "biases1": n_b_l1, "weights2": n_W_l2, "biases2": n_b_l2, "counter_param": counter_param})
-                        mathcontent = sio.loadmat('datamat{}_{}.mat'.format(self.ii_saved_local, epoch))
-                    except:
-                        print('Unable to save file .. retrying')
-                        pause(3)
-                        sio.savemat('datamat{}_{}.mat'.format(self.ii_saved_local, epoch), {
-                            "weights1": n_W_l1, "biases1": n_b_l1, "weights2": n_W_l2, "biases2": n_b_l2, "counter_param": counter_param})
-
-
+                    if stop_consensus:
+                        try:
+                            sio.savemat('datamat{}_{}.mat'.format(self.ii_saved_local, epoch), {
+                                "weights1": n_W_l1, "biases1": n_b_l1, "weights2": n_W_l2, "biases2": n_b_l2, "counter_param": counter_param})
+                            mathcontent = sio.loadmat('datamat{}_{}.mat'.format(self.ii_saved_local, epoch))
+                        except:
+                            print('Unable to save file .. retrying')
+                            pause(3)
+                            sio.savemat('datamat{}_{}.mat'.format(self.ii_saved_local, epoch), {
+                                "weights1": n_W_l1, "biases1": n_b_l1, "weights2": n_W_l2, "biases2": n_b_l2, "counter_param": counter_param})
                     # saving parameters
                     # try:
                     #     sio.savemat('parameters{}_{}.mat'.format(self.ii_saved_local, epoch), {
