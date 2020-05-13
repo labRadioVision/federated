@@ -174,5 +174,5 @@ optional arguments:
                         
   -compression COMPRESSION
                        
-	sets the compression factor for communication: 0 no compression, 1, sparse, 2 sparse + dpcm, 3 sparse (high compression factor), 4 sparse + dpcm (high compression factor)
+	sets the model parameters compression (model pruning and sparsification) profile: 0-4, 0: no compression
 
