@@ -1,6 +1,9 @@
 # For further details please check the following articles: 
+
 https://arxiv.org/pdf/1912.13163.pdf or https://ieeexplore.ieee.org/abstract/document/8950073/
+
 https://ieee-dataport.org/open-access/federated-learning-mmwave-mimo-radar-dataset-testing
+
 https://ieeexplore.ieee.org/abstract/document/9054055/
 
 # Usage example for federated_sample_XXX_YYY.py.
