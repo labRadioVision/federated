@@ -128,26 +128,39 @@ usage: FL_CFA_CNN_tf2.py [-h] [-mu MU] [-eps EPS] [-K K] [-N N] [-T T]
                          [-consensus_mode CONSENSUS_MODE] [-graph GRAPH]
                          [-compression COMPRESSION]
 
+
 optional arguments:
+
   -h, --help            show this help message and exit
+  
   -mu MU                sets the learning rate for local SGD
+  
   -eps EPS              sets the mixing parameters for model averaging (CFA)
+  
   -K K                  sets the number of network devices
+  
   -N N                  sets the max. number of neighbors per device per round
+  
   -T T                  sets the number of training epochs
+  
   -samp SAMP            sets the number samples per device
+  
   -input_data INPUT_DATA
                         sets the path to the federated dataset
+                        
   -rand RAND            sets static or random choice of the N neighbors on
                         every new round (0 static, 1 random)
+                        
   -consensus_mode CONSENSUS_MODE
                         0: combine one neighbor at a time and run sgd AFTER
                         every new combination; 1 (faster): combine all
                         neighbors on a single stage, run one sgd after this
                         combination
+                        
   -graph GRAPH          sets the input graph: 0 for default graph, >0 uses the
                         input graph in vGraph.mat, and choose one graph from
                         the available adjacency matrices
+                        
   -compression COMPRESSION
                         sets the compression factor for communication: 0 no
                         compression, 1, sparse, 2 sparse + dpcm, 3 sparse
