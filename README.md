@@ -167,21 +167,14 @@ optional arguments:
                         
   -consensus_mode CONSENSUS_MODE
                         
-											  0: combine one neighbor at a time and run sgd AFTER
-                        every new combination; 1 (faster): combine all
-                        neighbors on a single stage, run one sgd after this
-                        combination
+	0: combine one neighbor at a time and run sgd AFTER every new combination; 
+	1 (faster): combine (MODEL AVERAGING) all neighbors on a single stage, run one sgd AFTER model averaging
                         
   -graph GRAPH         
 	
-	sets the input graph: 0 for default graph, >0 uses the
-                        input graph in vGraph.mat, and choose one graph from
-                        the available adjacency matrices
+	sets the input graph: 0 for default graph, >0 uses ths input graph in vGraph.mat, and choose one graph from the available 	adjacency matrices
                         
   -compression COMPRESSION
                        
-	sets the compression factor for communication: 0 no
-                        compression, 1, sparse, 2 sparse + dpcm, 3 sparse
-                        (high compression factor), 4 sparse + dpcm (high
-                        compression factor)
+	sets the compression factor for communication: 0 no compression, 1, sparse, 2 sparse + dpcm, 3 sparse (high compression factor), 4 sparse + dpcm (high compression factor)
 
