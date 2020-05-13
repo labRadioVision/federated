@@ -123,9 +123,9 @@ Use FC layers (2NN model, see paper) and CFA federated learning algorithm. Sets 
 
 New version of the FL simulator: supports tensorflow 2. 
 
-CFA and gossip implemented:
+CFA and gossip implemented, usage: 
 
-usage: FL_CFA_CNN_tf2.py [-h] [-mu MU] [-eps EPS] [-K K] [-N N] [-T T]
+FL_CFA_CNN_tf2.py [-h] [-mu MU] [-eps EPS] [-K K] [-N N] [-T T]
                          [-samp SAMP] [-input_data INPUT_DATA] [-rand RAND]
                          [-consensus_mode CONSENSUS_MODE] [-graph GRAPH]
                          [-compression COMPRESSION]
