@@ -6,7 +6,7 @@ https://ieee-dataport.org/open-access/federated-learning-mmwave-mimo-radar-datas
 
 https://ieeexplore.ieee.org/abstract/document/9054055/
 
-# Usage example for federated_sample_XXX_YYY.py.
+# NOTE 
 
 - XXX refers to the ML model. Options: CNN, 2NN
 
@@ -26,7 +26,9 @@ tf.disable_v2_behavior()
 
 Please check https://www.tensorflow.org/guide/migrate
 
-Run 
+# Usage example for federated_sample_XXX_YYY.py
+
+Run:
 
 python federated_sample_XXX_YYY.py -h 
 
@@ -119,7 +121,7 @@ Use FC layers (2NN model, see paper) and CFA federated learning algorithm. Sets 
 
 # Decentralized Federated Learning simulator: FL_CFA_CNN_tf2.py (UPDATE 13/05/2020)
 
-New version of the FL simulator: supports tensorflow 2. 
+New version of the FL simulator: supports tensorflow version 2. 
 
 CFA and gossip implemented, usage: 
 
