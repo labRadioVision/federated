@@ -1,2 +1,10 @@
 Federated Learning implementation with MNIST dataset
 Requires TensorFlow min v2.3
+
+federated_learning_keras_consensus_FL_MNIST.py
+Federated Learning with Consensus (decentralized implementation). 
+federated_learning_keras_consensus_FL_MNIST.py -h for help
+
+federated_learning_keras_PS_MNIST.py
+Federated Learning with Parameter Server (centralized implementation). 
+federated_learning_keras_PS_MNIST.py -h for help
