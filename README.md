@@ -24,6 +24,8 @@ tf.disable_v2_behavior()
 
 Please check https://www.tensorflow.org/guide/migrate
 
+Folder MNIST_dataset contains an implementation that supports tensorflow 2.3 and above 
+
 # Usage example for federated_sample_XXX_YYY.py
 
 Run:
