@@ -1,0 +1,112 @@
+The  database contains the raw range-azimuth measurements obtained from mmWave MIMO radars (IWR1843BOOST http://www.ti.com/tool/IWR1843BOOST) deployed in different positions around a robotic manipulator.
+
+Instructions:
+
+The database contains 5 data structures:
+
+i) mmwave_data_test has dimension 900 x 256 x 63. Contains 900 FFT range-azimuth measurements of size 256 x 63: 256-point range samples corresponding to a max range of 11m (min range of 0.5m) and 63 angle bins, corresponding to DOA ranging from -75 to +75 degree. These data are used for testing (validation database). The corresponding labels are in label_test. Each label (from 0 to 5) corresponds to one of the 6 positions (from 1 to 6) of the operator as detailed in the image attached.
+
+
+
+ii) mmwave_data_train has dimension 900 x 256 x 63. Contains 900 FFT range-azimuth measurements used for training. The corresponding labels are in label_train.
+
+
+
+iii) LABELS AND CLASSES: label_test with dimension 900 x 1, contains the true labels for test data (mmwave_data_test). These are the (true) classes corresponding to integer labels from 0 to 5. Each class corresponds to a subject position in the surrounding of the robot, in particular:
+
+CLASS (or LABEL) 0 identifies the human operator as working close-by the robot, at distance between 0.5 and 0.7 m and azimtuh 40-60 deg (positive).
+
+CLASS 1 identifies the human operator as working close-by the robot, at distance between 0.3 and 0.5 m and azimtuh in the range -10 + 10 deg.
+
+CLASS 2 identifies the human operator as working close-by the robot, at distance between 0.5 and 0.7 m and azimtuh 40-60 deg (negative).
+
+CLASS 3 identifies the human operator as working at distance between 1 and 1.2 m from the robot and azimtuh 20-40 deg (negative).
+
+CLASS 4 identifies the human operator as working close-by the robot, at distance between 0.9 and 1.1 m and azimtuh in the range -10 + 10 deg.
+
+CLASS 5 identifies the human operator as working at distance between 1 and 1.2 m from the robot and azimtuh 20-40 deg (positive).
+
+
+iv) label_train with dimension 900 x 1, contains the true labels for train data (mmwave_data_train), namely classes (true labels) correspond to integers from 0 to 5.
+
+
+v) p (1 x 900) contains the chosen random permutation for data partition among nodes/device and federated learnig simulation (see python code).
+
+usage: federated_learning_keras_consensus_FL.py [-h] [-resume RESUME] [-PS PS]
+                                                [-consensus CONSENSUS]
+                                                [-mu MU] [-eps EPS]
+                                                [-target TARGET] [-K K]
+                                                [-Ka KA] [-N N]
+                                                [-Ka_consensus KA_CONSENSUS]
+                                                [-samp SAMP]
+                                                [-noniid_assignment NONIID_ASSIGNMENT]
+                                                [-run RUN]
+                                                [-random_data_distribution RANDOM_DATA_DISTRIBUTION]
+                                                [-batches BATCHES]
+                                                [-batch_size BATCH_SIZE]
+                                                [-input_data INPUT_DATA]
+                                                [-graph GRAPH]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -PS PS                set 1 to enable PS server and FedAvg (vanilla FL with parameter server PS), set 0 to disable
+                        PS
+  -consensus CONSENSUS  set 1 to enable consensus, set 0 to disable
+  -mu MU                sets the learning rate for all setups
+  -eps EPS              sets the mixing parameters for model averaging (C-FL), for more information see https://arxiv.org/abs/2103.10346
+  -target TARGET        sets the target loss to stop federation
+  -K K                  sets the number of network devices
+  -Ka KA                sets the number of active devices per round for vanilla FL with PS server (KA<=
+                        K), see https://arxiv.org/abs/2103.10346
+  -N N                  sets the max. number of neighbors per device per round
+                        in C-FL. Suggestion: choose N = 1, for more info see https://arxiv.org/abs/2101.03367
+  -Ka_consensus KA_CONSENSUS
+                        sets the number of active devices for C-FL (consensus only)
+  -samp SAMP            sets the number samples per device
+  -noniid_assignment NONIID_ASSIGNMENT
+                        set 0 for iid assignment, 1 for non-iid random
+  -run RUN              set the run id
+  -random_data_distribution RANDOM_DATA_DISTRIBUTION
+                        set 0 for fixed distribution, 1 for time-varying
+  -batches BATCHES      sets the number of batches per learning round
+  -batch_size BATCH_SIZE
+                        sets the batch size per learning round
+  -input_data INPUT_DATA
+                        sets the path to the federated dataset
+
+  usage: federated_learning_keras_consensus_FL.py [-h] [-resume RESUME] [-PS PS]
+                                                [-consensus CONSENSUS]
+                                                [-mu MU] [-eps EPS]
+                                                [-target TARGET] [-K K]
+                                                [-Ka KA] [-N N]
+                                                [-samp SAMP]
+                                                [-noniid_assignment NONIID_ASSIGNMENT]
+                                                [-run RUN]
+                                                [-random_data_distribution RANDOM_DATA_DISTRIBUTION]
+                                                [-batches BATCHES]
+                                                [-batch_size BATCH_SIZE]
+                                                [-input_data INPUT_DATA]
+                                                [-graph GRAPH]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -PS PS                set 1 to enable vanill FL with PS server, set 0 to disable
+                        PS
+  -consensus CONSENSUS  set 1 to enable consensus, set 0 to disable
+  -mu MU                sets the learning rate for all setups
+  -eps EPS              sets the mixing parameters for model averaging (CFA)
+  -target TARGET        sets the target loss to stop federation
+  -K K                  sets the number of network devices
+  -Ka KA                sets the number of devices used by the PS to compute the global model update in FL (KA<=
+                        K)
+  -samp SAMP            sets the number samples per device
+  -noniid_assignment NONIID_ASSIGNMENT
+                        set 0 for iid assignment, 1 for non-iid random
+  -run RUN              set the run id
+  -random_data_distribution RANDOM_DATA_DISTRIBUTION
+                        set 0 for fixed distribution, 1 for time-varying
+  -batches BATCHES      sets the number of batches per learning round
+  -batch_size BATCH_SIZE
+                        sets the batch size per learning round
+  -input_data INPUT_DATA
+                        sets the path to the federated dataset

@@ -10,21 +10,12 @@ https://ieeexplore.ieee.org/abstract/document/9209305
 
 # NOTE 
 
-The code is written for tensorflow 1.13.1. To use the code with tensorflow 2.1.0 installed, please use the following workaround:
+The code is written for Tensorflow 1.13.1. 
 
-Replace:
+NEW: Examples with Tensorflow 2.4 are given in the folder tensorflow2_implementations, see the readme files in there.
 
-import tensorflow as tf
 
-with:
-
-import tensorflow.compat.v1 as tf
-
-tf.disable_v2_behavior()
-
-Please check https://www.tensorflow.org/guide/migrate
-
-Folder MNIST_dataset contains an implementation that supports tensorflow 2.3 and above 
+To use the code described below with tensorflow 2 installed, please use the workaround described in https://www.tensorflow.org/guide/migrate
 
 # Usage example for federated_sample_XXX_YYY.py
 

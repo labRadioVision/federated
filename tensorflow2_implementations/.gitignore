@@ -1,0 +1,14 @@
+
+MNIST_dataset/.idea/shelf/Uncommitted_changes_before_Update_at_07_04_2021_00_10__Default_Changelist_.xml
+MNIST_dataset/.idea/workspace.xml
+MNIST_dataset/__pycache__/DataSets.cpython-38.pyc
+MNIST_dataset/consensus/__pycache__/parameter_server_v2.cpython-38.pyc
+MNIST_dataset/consensus/__pycache__/parameter_server.cpython-38.pyc
+MNIST_dataset/consensus/__pycache__/consensus_v3.cpython-38.pyc
+MNIST_dataset/consensus/__pycache__/consensus_v2.cpython-38.pyc
+*.pyc
+*.docx
+*.tmp
+ReinforcementLearning/.idea/.name
+FL_radar_dataset/.idea/.name
+*.xml

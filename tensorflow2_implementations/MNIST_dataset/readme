@@ -1,0 +1,128 @@
+Consensus driven FL: federated_learning_keras_consensus_FL_MNIST.py
+usage: federated_learning_keras_consensus_FL_MNIST.py [-h] [-resume RESUME]
+                                                      [-PS PS]
+                                                      [-consensus CONSENSUS]
+                                                      [-mu MU] [-eps EPS]
+                                                      [-target TARGET] [-K K]
+                                                      [-Ka KA] [-N N]
+                                                      [-Ka_consensus KA_CONSENSUS]
+                                                      [-samp SAMP]
+                                                      [-noniid_assignment NONIID_ASSIGNMENT]
+                                                      [-run RUN]
+                                                      [-random_data_distribution RANDOM_DATA_DISTRIBUTION]
+                                                      [-batches BATCHES]
+                                                      [-batch_size BATCH_SIZE]
+                                                      [-graph GRAPH]
+                                                      [-modelselection MODELSELECTION]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -resume RESUME        set 1 to resume from a previous simulation, 0 to start
+                        from the beginning
+  -PS PS                set 1 to enable PS server and FedAvg, set 0 to disable
+                        PS (KEEP TO 0 TO DISABLE PS)
+  -consensus CONSENSUS  set 1 to enable consensus, set 0 to disable (KEEP TO 1 TO ENABLE CONSENSUS)
+  -mu MU                sets the learning rate for all setups
+  -eps EPS              sets the mixing parameters for model averaging (CFA)
+  -target TARGET        sets the target loss to stop federation
+  -K K                  sets the number of network devices
+  -Ka KA                sets the number of active devices per round in FA (<=
+                        K) (TO BE USED ONLY IF PS = 1)
+  -N N                  sets the max. number of neighbors per device per round
+                        in for consensus (Consensus-based Federated Averaging)
+  -Ka_consensus KA_CONSENSUS
+                        sets the number of active devices for consensus
+  -samp SAMP            sets the number samples per device
+  -noniid_assignment NONIID_ASSIGNMENT
+                        set 0 for iid assignment, 1 for non-iid random
+  -run RUN              set the run id
+  -random_data_distribution RANDOM_DATA_DISTRIBUTION
+                        set 0 for fixed distribution, 1 for time-varying
+  -batches BATCHES      sets the number of batches per learning round
+  -batch_size BATCH_SIZE
+                        sets the batch size per learning round
+  -modelselection MODELSELECTION
+                        sets the model: use 0 for lenet-1 model
+
+federated_learning_keras_PS_MNIST.py: Federated Averaging with PS
+usage: federated_learning_keras_PS_MNIST.py [-h] [-resume RESUME] [-PS PS]
+                                            [-consensus CONSENSUS] [-mu MU]
+                                            [-eps EPS] [-target TARGET] [-K K]
+                                            [-Ka KA] [-N N] [-samp SAMP]
+                                            [-noniid_assignment NONIID_ASSIGNMENT]
+                                            [-run RUN]
+                                            [-random_data_distribution RANDOM_DATA_DISTRIBUTION]
+                                            [-batches BATCHES]
+                                            [-batch_size BATCH_SIZE]
+                                            [-graph GRAPH]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -resume RESUME        set 1 to resume from a previous simulation, 0 to start
+                        from the beginning
+  -PS PS                set 1 to enable PS server and FedAvg, set 0 to disable
+                        PS (KEEP TO 1 TO IMPLEMENT PS BASED FL)
+  -consensus CONSENSUS  set 1 to enable consensus, set 0 to disable (KEEP 0 TO DISABLE)
+  -mu MU                sets the learning rate for all setups
+  -eps EPS              sets the mixing parameters for model averaging (CFA)
+  -target TARGET        sets the target loss to stop federation
+  -K K                  sets the number of network devices
+  -Ka KA                sets the number of active devices per round in FA (<=
+                        K)
+  -N N                  sets the max. number of neighbors per device per round
+                        in CFA
+  -samp SAMP            sets the number samples per device
+  -noniid_assignment NONIID_ASSIGNMENT
+                        set 0 for iid assignment, 1 for non-iid random
+  -run RUN              set the run id
+  -random_data_distribution RANDOM_DATA_DISTRIBUTION
+                        set 0 for fixed distribution, 1 for time-varying
+  -batches BATCHES      sets the number of batches per learning round
+  -batch_size BATCH_SIZE
+                        sets the batch size per learning round
+
+federated_learning_keras_low_power_PS_MNIST.py: Low power PS based FL. Set the population of active devices KA, turn off (optimizer and communication) all the remaining devices K - KA
+usage: federated_learning_keras_low_power_PS_MNIST.py [-h] [-resume RESUME]
+                                                      [-PS PS]
+                                                      [-consensus CONSENSUS]
+                                                      [-mu MU] [-eps EPS]
+                                                      [-target TARGET] [-K K]
+                                                      [-Ka KA] [-N N]
+                                                      [-Ka_consensus KA_CONSENSUS]
+                                                      [-samp SAMP]
+                                                      [-noniid_assignment NONIID_ASSIGNMENT]
+                                                      [-run RUN]
+                                                      [-random_data_distribution RANDOM_DATA_DISTRIBUTION]
+                                                      [-batches BATCHES]
+                                                      [-batch_size BATCH_SIZE]
+                                                      [-graph GRAPH]
+                                                      [-modelselection MODELSELECTION]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -resume RESUME        set 1 to resume from a previous simulation, 0 to start
+                        from the beginning
+  -PS PS                set 1 to enable PS server and FedAvg, set 0 to disable
+                        PS (KEEP TO 1 TO IMPLEMENT PS BASED FL)
+  -consensus CONSENSUS  set 1 to enable consensus, set 0 to disable (KEEP 0 TO DISABLE)
+  -mu MU                sets the learning rate for all setups
+  -eps EPS              sets the mixing parameters for model averaging (CFA)
+  -target TARGET        sets the target loss to stop federation
+  -K K                  sets the number of network devices
+  -Ka KA                sets the number of active devices per round in FA (<=
+                        K)
+  -N N                  sets the max. number of neighbors per device per round
+                        in CFA
+  -Ka_consensus KA_CONSENSUS
+                        sets the number of active devices for consensus (NOT NEEDED IF PS = 1)
+  -samp SAMP            sets the number samples per device
+  -noniid_assignment NONIID_ASSIGNMENT
+                        set 0 for iid assignment, 1 for non-iid random assignment
+  -run RUN              set the run id (simulation episode)
+  -random_data_distribution RANDOM_DATA_DISTRIBUTION
+                        set 0 for fixed distribution, 1 for time-varying (time-varying training data)
+  -batches BATCHES      sets the number of batches per learning round
+  -batch_size BATCH_SIZE
+                        sets the batch size per learning round
+  -modelselection MODELSELECTION
+                        sets the ML model: use 0 to set lenet-1
