@@ -1,8 +1,12 @@
 # For further details please check the following articles: 
 
-https://arxiv.org/pdf/1912.13163.pdf or https://ieeexplore.ieee.org/abstract/document/8950073/
+Carbon footprint: https://arxiv.org/abs/2103.10346
 
-https://ieee-dataport.org/open-access/federated-learning-mmwave-mimo-radar-dataset-testing
+Tutorial: IEEE Communications Magazine https://arxiv.org/abs/2101.03367 or https://ieeexplore.ieee.org/document/9374643
+
+Consensus-based Federated Averaging: https://arxiv.org/pdf/1912.13163.pdf or https://ieeexplore.ieee.org/abstract/document/8950073/
+
+Radar dataset: https://ieee-dataport.org/open-access/federated-learning-mmwave-mimo-radar-dataset-testing
 
 https://ieeexplore.ieee.org/abstract/document/9054055/
 
