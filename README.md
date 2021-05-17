@@ -1,23 +1,18 @@
 This repo contains code accompaning the papers listed below:
 
-IEEE Communications Magazine https://arxiv.org/abs/2101.03367 or https://ieeexplore.ieee.org/document/9374643
+S. Savazzi, M. Nicoli, M. Bennis, S. Kianoush, L. Barbieri “Opportunities of Federated Learning in Connected, Cooperative and Automated Industrial Systems,” IEEE Communications Magazine, vol. 59, no. 2, pp. 16-21, February 2021 Online Available: https://arxiv.org/abs/2101.03367
 
-Consensus-based Federated Averaging: https://arxiv.org/pdf/1912.13163.pdf or https://ieeexplore.ieee.org/abstract/document/8950073/
+S. Savazzi, M. Nicoli and V. Rampa, "Federated Learning With Cooperating Devices: A Consensus Approach for Massive IoT Networks," IEEE Internet of Things Journal, vol. 7, no. 5, pp. 4641-4654, May 2020. Online Available: https://arxiv.org/pdf/1912.13163.pdf
 
-Radar dataset: https://ieee-dataport.org/open-access/federated-learning-mmwave-mimo-radar-dataset-testing
+Dataset for radars could be also downloaded from https://ieee-dataport.org/open-access/federated-learning-mmwave-mimo-radar-dataset-testing
 
-https://ieeexplore.ieee.org/abstract/document/9054055/
+Stefano Savazzi, Sanaz Kianoush, Vittorio Rampa, Mehdi Bennis "A Framework for Energy and Carbon Footprint Analysis of Distributed and Federated Edge Learning,” Online Available: https://arxiv.org/abs/2103.10346 (see also https://github.com/labRadioVision/federated_learning_carbon_footprint)
 
-https://ieeexplore.ieee.org/abstract/document/9209305
+# NOTES AND VERSIONING 
 
-Energy/carbon footprint evaluations: https://arxiv.org/abs/2103.10346 (see also https://github.com/labRadioVision/federated_learning_carbon_footprint)
+The code is written for Tensorflow 1.13.x and Tensorflow 2. In particular Tensorflow 2.4 compliant code is given in the folder tensorflow2_implementations, see also the readme files in there.
 
-# NOTE 
-
-The code is written for Tensorflow 1.13.1. 
-
-NEW: Examples with Tensorflow 2.4 are given in the folder tensorflow2_implementations, see the readme files in there.
-
+The instruction below refer to TensorFlow 1.13.x implementation presented in S. Savazzi, M. Nicoli and V. Rampa, "Federated Learning With Cooperating Devices: A Consensus Approach for Massive IoT Networks," IEEE Internet of Things Journal, vol. 7, no. 5, pp. 4641-4654, May 2020. Online Available: https://arxiv.org/pdf/1912.13163.pdf
 
 To use the code described below with tensorflow 2 installed, please use the workaround described in https://www.tensorflow.org/guide/migrate
 
