@@ -1,6 +1,6 @@
-# For further details please check the following articles: 
+This repo contains code accompaning the papers listed below:
 
-Tutorial: IEEE Communications Magazine https://arxiv.org/abs/2101.03367 or https://ieeexplore.ieee.org/document/9374643
+IEEE Communications Magazine https://arxiv.org/abs/2101.03367 or https://ieeexplore.ieee.org/document/9374643
 
 Consensus-based Federated Averaging: https://arxiv.org/pdf/1912.13163.pdf or https://ieeexplore.ieee.org/abstract/document/8950073/
 
@@ -10,7 +10,7 @@ https://ieeexplore.ieee.org/abstract/document/9054055/
 
 https://ieeexplore.ieee.org/abstract/document/9209305
 
-Energy/carbon footprint evaluations: https://arxiv.org/abs/2103.10346
+Energy/carbon footprint evaluations: https://arxiv.org/abs/2103.10346 (see also https://github.com/labRadioVision/federated_learning_carbon_footprint)
 
 # NOTE 
 
