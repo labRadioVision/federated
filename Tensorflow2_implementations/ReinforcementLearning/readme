@@ -1,0 +1,68 @@
+Reinforcement Learning Example
+
+Agent: crawling robot https://github.com/Freenove/Freenove_Big_Hexapod_Robot_Kit_for_Raspberry_Pi
+
+The agent observes the environment through an RGB camera (Rasberry PI camera model V2, 8M, https://www.raspberrypi.org/products/camera-module-v2/) and a TOF sensor (TeraRanger Evo 64px - 8x8px, 5m, https://www.terabee.com/shop/3d-tof-cameras/teraranger-evo-64px/)
+
+The action space consist of 4 robot motions: Forward (F), Backward (B), Left (L), and Right (R). Motions and cinematic are pre-programmed. Each robot explores a different site area collecting new training data (observations).
+
+The agents (5) are preprogrammed to get positive rewards whenever they approach a target destination by following a target (pre-assigned) trajectory. To simplify the setup and the training time, the robots are forced to move on a 2D regular grid space consisting of 40 landmark points, of which 35 are usable (as no obstacles are present). The agents receive negative rewards whenever they move towards wrong positions/locations or too close to obstacles (in this case the robot is stopped depending on the TOF sensor data).
+
+
+
+Example Dataset (folder dataset_trajectories)
+
+Data_robots: contains the data_hexapods cell structure of size 35 x 5. Each element contains a structure with the raw images obtained from the RGB camera (camera) and TOF (terabee). Data are pre-processed and resized. Every row refers to a position index according to the defined landmark points (organized in a regular grid). Columns contain images obtained from different robots (5 robots in this example).
+
+Lookuptab: for each position in the grid, gives the next occupied location of the robot as the result of the implementaiton of an action, namely Backward (B), Forward (F), Left (L), Right (R). Lookuptab might be generated for a custom environment using matlab_codes/getLookupTable
+
+Reward: gives the pre-programmed rewards for each position in the grid. Rewards might be changed depening on the target trajectory or the assigned robot task.
+
+Reinforcement Learning algorithm: Deep Q-Learning
+
+Federated Learning method: PS (FL with Parameter Server, or vanilla Fl) and consensus-driven FL. For further details see https://arxiv.org/abs/2103.10346
+
+Code usage:
+usage: Federated_Deep_QLearning.py [-h] [-resume RESUME]
+                                   [-consensus CONSENSUS] [-PS PS]
+                                   [-isolated ISOLATED]
+                                   [-centralized CENTRALIZED]
+                                   [-update_federation UPDATE_FEDERATION]
+                                   [-run RUN] [-target_reward TARGET_REWARD]
+                                   [-mu MU] [-eps EPS] [-K K] [-N N]
+                                   [-pos POS] [-true_pos TRUE_POS]
+                                   [-input_data INPUT_DATA]
+                                   [-input_table INPUT_TABLE]
+                                   [-input_rewards INPUT_REWARDS] [-rand RAND]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -consensus CONSENSUS  sets FRL using consensus, implements Consensus-driven FL on DeepMind ML model
+  -PS PS                sets FRL with PS, implements vanilla FL on DeepMind ML model
+  -isolated ISOLATED    disable FRL, all robots learn independently, without cooperation
+  -centralized CENTRALIZED
+                        centralized RL, robots send observations to a datacenter, the datacenter runs the RL algorithm
+  -update_federation UPDATE_FEDERATION
+                        counts the number of frames (robot movements) per
+                        epoch
+  -run RUN              run number (for multiple episodes)
+  -target_reward TARGET_REWARD: sets the target reward to stop exploration
+  -mu MU                sets the learning rate for DQL
+  -eps EPS              sets the mixing parameters for model averaging (C-FL)
+  -K K                  sets the number of network devices (K=5 is supported)
+  -N N                  sets the max. number of neighbors per device per round (N=1 is supported)
+  -pos POS              sets the maximum total number of explorable positions:
+                        pos/K gives the number of explored positions per
+                        device/agent/robot
+  -true_pos TRUE_POS    sets the number of explorable positions in the
+                        workspace (without obstacles)
+  -input_data INPUT_DATA
+                        sets the path to the federated dataset, to compute new
+                        observations and rewards for input actions
+  -input_table INPUT_TABLE
+                        sets the path to the lookup table to compute robot
+                        trajectories
+  -input_rewards INPUT_REWARDS
+                        sets the path to the input rewards per robot position
+  -rand RAND            sets static or random choice of the N neighbors on
+                        every new round (0 static, 1 random)
