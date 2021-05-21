@@ -4,7 +4,7 @@ Agent: crawling robot https://github.com/Freenove/Freenove_Big_Hexapod_Robot_Kit
 
 The agent observes the environment through an RGB camera (Rasberry PI camera model V2, 8M, https://www.raspberrypi.org/products/camera-module-v2/) and a TOF sensor (TeraRanger Evo 64px - 8x8px, 5m, https://www.terabee.com/shop/3d-tof-cameras/teraranger-evo-64px/)
 
-The action space consist of 4 robot motions: Forward (F), Backward (B), Left (L), and Right (R). Motions and cinematic are pre-programmed. Each robot explores a different site area collecting new training data (observations).
+The action space consist of 4 robot motions: Forward (F), Backward (B), Left (L), and Right (R). Motions and kinematic are pre-programmed and controllable via MQTT communication. Each robot explores a different site area collecting new training data (observations).
 
 The agents (5) are preprogrammed to get positive rewards whenever they approach a target destination by following a target (pre-assigned) trajectory. To simplify the setup and the training time, the robots are forced to move on a 2D regular grid space consisting of 40 landmark points, of which 35 are usable (as no obstacles are present). The agents receive negative rewards whenever they move towards wrong positions/locations or too close to obstacles (in this case the robot is stopped depending on the TOF sensor data).
 
