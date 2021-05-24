@@ -244,20 +244,30 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                 optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
             # compute second order derivative here ...
+            @tf.function
+            def second_order_gradient():
+                with tf.GradientTape(persistent=True) as tape1:
+                    tape1.watch(model.trainable_variables)
+                    with tf.GradientTape(persistent=True) as tape2:
+                        # Train the model on data samples
+                        classes = model(data_sample)
+                        # Apply the masks
+                        class_v = tf.reduce_sum(tf.multiply(classes, masks), axis=1)
+                        # Calculate loss
+                        loss = loss_function(label_sample, class_v)
+                    grads_2 = tape2.gradient(loss, model.trainable_variables)
+                num_train_layers = len(model.trainable_variables)
+                grads_sorder = []
+                for k in range(num_train_layers):
+                    grads_sorder.append(tape1.jacobian(grads_2[k], model.trainable_variables))  # one row-block of the hessian
+                # grads_2 = tape1.gradient(loss, model.trainable_variables)
+                return grads_sorder, grads_2
 
-            with tf.GradientTape(persistent=True) as tape1:
-                with tf.GradientTape(persistent=True) as tape2:
-                    # Train the model on data samples
-                    classes = model(data_sample)
-                    # Apply the masks
-                    class_v = tf.reduce_sum(tf.multiply(classes, masks), axis=1)
-                    # Calculate loss
-                    loss = loss_function(label_sample, class_v)
-                grads_2 = tape2.gradient(loss, model.trainable_variables)
-            # for d in range(len(grads_2)):
-            #     grads_sorder.append(tape1.gradient(grads_2[d], model.trainable_variables))
-            grads_sorder = tape1.gradient(grads_2, model.trainable_variables)
+            grads_sorder, grads_2 = second_order_gradient()
+
+            # update the model
             optimizer.apply_gradients(zip(grads_2, model.trainable_variables))
+
             grads_2nd_v = []
             for d in range(len(grads_sorder)):
                 grads_2nd_v.append(grads_sorder[d].numpy())
