@@ -25,13 +25,56 @@ class Parameter_Server:
         # self.checkpointpath = []
         self.file_paths = []
         self.outfile_models = []
+        self.outfile_gradients = []
         self.outfile = []
         self.global_model = 'results/model_global.npy'
         self.eps_t_control = 1 / devices
         self.loss = math.inf * np.ones(self.devices, dtype=float)
         for k in range(devices):
             self.outfile_models.append('results/dump_train_model{}.npy'.format(k))
+            self.outfile_gradients.append('results/dump_train_grad{}.npy'.format(k))
             self.outfile.append('results/dump_train_variables{}.npz'.format(k))
+
+    def federated_metalearning(self, epoch=0, aggregation_type=0):
+        # old_weights = self.model_target_parameters
+        stop_aggregation = False
+        # check learning status
+
+        if (aggregation_type == 0): # standard model averaging (fedavg)
+            combined_models = 0
+            model_gradients = []
+            # seqc = random.sample(range(self.devices), self.active)
+            for k in random.sample(range(self.devices), self.active):
+                while not os.path.isfile(self.outfile_gradients[k]):
+                    # implementing consensus
+                    print("waiting")
+                    pause(1)
+
+                # model_weights.append(np.load(self.outfile_models[k], allow_pickle=True))
+                try:
+                    model_gradients.append(np.load(self.outfile_gradients[k], allow_pickle=True))
+                except:
+                    pause(5)
+                    print("retrying opening model on server")
+                    try:
+                        model_gradients.append(np.load(self.outfile_gradients[k], allow_pickle=True))
+                    except:
+                        print("halting aggregation on server")
+                        stop_aggregation = True
+
+                if not stop_aggregation:
+                    combined_models += 1
+                    # for q in range(self.layers):
+                    #     self.model_parameters[q] = self.model_parameters[q] + model_weights[q]
+            if combined_models > 0: # normalize wrt the received models on server
+                print("Received models on the PS to combine {}".format(combined_models))
+                for q in range(self.layers):
+                    for k in range(combined_models):
+                        self.model_parameters[q] = self.model_parameters[q] + self.update_factor*(model_gradients[k][q] - self.model_parameters[q])/combined_models
+            # else:
+            #     self.model_parameters = old_weights
+            del model_gradients
+        return self.model_parameters
 
     def federated_target_weights_aggregation(self, epoch=0, aggregation_type=0):
         # old_weights = self.model_target_parameters

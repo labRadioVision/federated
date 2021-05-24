@@ -144,12 +144,12 @@ def processParameterServer(devices, active_devices_per_round, federated, refresh
     model_global = create_q_model()
     model_parameters_initial = np.asarray(model_global.get_weights())
     parameter_server = Parameter_Server(devices, model_parameters_initial, active_devices_per_round)
-    global_target_model = 'results/model_global.npy'
-    np.save(global_target_model, model_parameters_initial)
+    global_gradient = 'results/gradient_global.npy'
+    np.save(global_gradient, model_parameters_initial)
     pause(5) # wait for neighbors
     while True:
         pause(refresh_server) # refresh global model on every xx seconds
-        np.save(global_target_model, parameter_server.federated_target_weights_aggregation(epoch=0, aggregation_type=0))
+        np.save(global_gradient, parameter_server.federated_metalearning(epoch=0, aggregation_type=0))
         fileList = glob.glob('*.mat', recursive=False)
         if len(fileList) == devices:
             # stop the server
@@ -163,7 +163,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
     outfile_models = 'results/dump_train_model{}.npy'.format(device_index)
     outfile_models_grad = 'results/dump_train_grad{}.npy'.format(device_index)
     outfile_models_secondder = 'results/dump_train_secondder{}.npy'.format(device_index)
-    global_model = 'results/model_global.npy'
+    global_gradient = 'results/gradient_global.npy'
 
     np.random.seed(1)
     tf.random.set_seed(1)  # common initialization
@@ -259,15 +259,16 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                 num_train_layers = len(model.trainable_variables)
                 grads_sorder = []
                 for k in range(num_train_layers):
-                    grads_sorder.append(tape1.jacobian(grads_2[k], model.trainable_variables))  # one row-block of the hessian
+                    grads_sorder.append(tape1.jacobian(grads_2[k], model.trainable_variables[k]))  # one row-block of the hessian (block diagonal)
                 # grads_2 = tape1.gradient(loss, model.trainable_variables)
-                return grads_sorder, grads_2
+                return grads_sorder
 
-            grads_sorder, grads_2 = second_order_gradient()
+            grads_sorder = second_order_gradient()
 
             # update the model
-            optimizer.apply_gradients(zip(grads_2, model.trainable_variables))
+            # optimizer.apply_gradients(zip(grads_2, model.trainable_variables))
 
+            # convert to numpy
             grads_2nd_v = []
             for d in range(len(grads_sorder)):
                 grads_2nd_v.append(grads_sorder[d].numpy())
@@ -333,29 +334,28 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             stop_aggregation = False
             if parameter_server:
                 pause(refresh_server)
-                while not os.path.isfile(global_model):
+                while not os.path.isfile(global_gradient):
                     # implementing consensus
                     print("waiting")
                     pause(1)
                 try:
-                    model_global = np.load(global_model, allow_pickle=True)
+                    gradient_global = np.load(global_gradient, allow_pickle=True)
                 except:
                     pause(5)
                     print("retrying opening global model")
                     try:
-                        model_global = np.load(global_model, allow_pickle=True)
+                        gradient_global = np.load(global_gradient, allow_pickle=True)
                     except:
                         print("halting aggregation")
                         stop_aggregation = True
 
                 if not stop_aggregation:
-                    # print("updating from global model inside the parmeter server")
-                    for k in range(cfa_consensus.layers):
-                        # model_weights[k] = model_weights[k]+ 0.5*(model_global[k]-model_weights[k])
-                        model_weights[k] = model_global[k]
-                    model.set_weights(model_weights.tolist())
+                    # print("updating from global gradients obtained from the parmeter server")
+                    # convert from numpy
+                    grads_t = tf.convert_to_tensor(gradient_global)
+                    optimizer.apply_gradients(zip(grads_t, model.trainable_variables))
 
-            del model_weights
+            del grads_t
 
 
 
