@@ -24,7 +24,7 @@ import time
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, 0 to start from the beginning", type=float)
-parser.add_argument('-PS', default=0, help="set 1 to enable PS server and FedAvg, set 0 to disable PS", type=float)
+parser.add_argument('-PS', default=1, help="set 1 to enable PS server and FedAvg, set 0 to disable PS", type=float)
 parser.add_argument('-consensus', default=0, help="set 1 to enable consensus, set 0 to disable", type=float)
 parser.add_argument('-mu', default=0.00025, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-eps', default=1, help="sets the mixing parameters for model averaging (CFA)", type=float)
@@ -43,6 +43,8 @@ args = parser.parse_args()
 
 devices = args.K  # NUMBER OF DEVICES
 active_devices_per_round = args.Ka
+n_outputs = 10  # 6 classes
+max_epochs = 200
 
 if args.consensus == 1:
     federated = True
@@ -88,9 +90,7 @@ print("Number of batches for learning {}".format(number_of_batches))
 max_lag = number_of_batches*2 # consensus max delay 2= 2 epochs max
 refresh_server = 1 # refresh server updates (in sec)
 
-n_outputs = 10  # 6 classes
 
-max_epochs = 200
 
 validation_start = 1 # start validation in epochs
 
@@ -244,35 +244,32 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                 optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
             # compute second order derivative here ...
-            @tf.function
-            def second_order_gradient():
-                with tf.GradientTape(persistent=True) as tape1:
-                    tape1.watch(model.trainable_variables)
-                    with tf.GradientTape(persistent=True) as tape2:
-                        # Train the model on data samples
-                        classes = model(data_sample)
-                        # Apply the masks
-                        class_v = tf.reduce_sum(tf.multiply(classes, masks), axis=1)
-                        # Calculate loss
-                        loss = loss_function(label_sample, class_v)
-                    grads_2 = tape2.gradient(loss, model.trainable_variables)
-                num_train_layers = len(model.trainable_variables)
-                grads_sorder = []
-                for k in range(num_train_layers):
-                    grads_sorder.append(tape1.jacobian(grads_2[k], model.trainable_variables[k]))  # one row-block of the hessian (block diagonal)
-                # grads_2 = tape1.gradient(loss, model.trainable_variables)
-                return grads_sorder
-
-            grads_sorder = second_order_gradient()
-
-            # update the model
-            # optimizer.apply_gradients(zip(grads_2, model.trainable_variables))
+            # @tf.function
+            # def second_order_gradient():
+            #     with tf.GradientTape(persistent=True) as tape1:
+            #         tape1.watch(model.trainable_variables)
+            #         with tf.GradientTape(persistent=True) as tape2:
+            #             # Train the model on data samples
+            #             classes = model(data_sample)
+            #             # Apply the masks
+            #             class_v = tf.reduce_sum(tf.multiply(classes, masks), axis=1)
+            #             # Calculate loss
+            #             loss = loss_function(label_sample, class_v)
+            #         grads_2 = tape2.gradient(loss, model.trainable_variables)
+            #     num_train_layers = len(model.trainable_variables)
+            #     grads_sorder = []
+            #     for k in range(num_train_layers):
+            #         grads_sorder.append(tape1.jacobian(grads_2[k], model.trainable_variables[k]))  # one row-block of the hessian (block diagonal)
+            #     # grads_2 = tape1.gradient(loss, model.trainable_variables)
+            #     return grads_sorder
+            #
+            # grads_sorder = second_order_gradient()
 
             # convert to numpy
-            grads_2nd_v = []
-            for d in range(len(grads_sorder)):
-                grads_2nd_v.append(grads_sorder[d].numpy())
-            grads_2nd_v = np.asarray(grads_2nd_v)
+            # grads_2nd_v = []
+            # for d in range(len(grads_sorder)):
+            #     grads_2nd_v.append(grads_sorder[d].numpy())
+            # grads_2nd_v = np.asarray(grads_2nd_v)
 
             # obtain a new test observation from local database
             obs_t, labels_t = data_handle.getTrainingData(batch_size)
@@ -303,9 +300,9 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             model.save(checkpointpath1, include_optimizer=True, save_format='h5')
             np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
                      training_end=training_end, epoch_count=epoch_count, loss=running_loss)
-            np.save(outfile_models, model_weights)
+            # np.save(outfile_models, model_weights)
             np.save(outfile_models_grad, grads_v)
-            np.save(outfile_models, grads_2nd_v)
+            # np.save(outfile_models, grads_2nd_v)
 
             #  Consensus round
             # update local model
@@ -352,11 +349,12 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                 if not stop_aggregation:
                     # print("updating from global gradients obtained from the parmeter server")
                     # convert from numpy
-                    grads_t = tf.convert_to_tensor(gradient_global)
+                    grads_t = []
+                    for ii in range(gradient_global.size):
+                        grads_t.append(tf.convert_to_tensor(gradient_global[ii]))
                     optimizer.apply_gradients(zip(grads_t, model.trainable_variables))
 
             del grads_t
-
 
 
         # validation tool for device 'device_index'

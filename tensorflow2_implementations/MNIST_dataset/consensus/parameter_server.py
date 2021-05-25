@@ -14,7 +14,7 @@ from tensorflow.keras import models
 
 class Parameter_Server:
 
-    def __init__(self, devices, model_parameters, active_device_per_round, federated=True, graph=0, update_factor=0.99):
+    def __init__(self, devices, model_parameters, active_device_per_round, federated=True, graph=0, update_factor=1):
         self.federated = federated # true for federation active
         self.devices = devices # number of devices
         self.active = active_device_per_round
@@ -70,6 +70,7 @@ class Parameter_Server:
                 print("Received models on the PS to combine {}".format(combined_models))
                 for q in range(self.layers):
                     for k in range(combined_models):
+                        # Hessian weighting not implemented
                         self.model_parameters[q] = self.model_parameters[q] + self.update_factor*(model_gradients[k][q] - self.model_parameters[q])/combined_models
             # else:
             #     self.model_parameters = old_weights

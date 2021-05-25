@@ -225,6 +225,7 @@ def create_q_model():
 
     return keras.Model(inputs=inputs, outputs=classification)
 
+
 def processParameterServer(devices, active_devices_per_round, federated, refresh_server=1):
     model_global = create_q_model()
     model_parameters_initial = np.asarray(model_global.get_weights())
@@ -457,47 +458,6 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             else:
                 print("Warm up")
                 train_start = False
-
-            # check if parameter server is enabled
-            # stop_aggregation = False
-
-            # if parameter_server:
-            #     # pause(refresh_server)
-            #     while not os.path.isfile(global_model):
-            #         # implementing consensus
-            #         print("waiting")
-            #         pause(1)
-            #     try:
-            #         model_global = np.load(global_model, allow_pickle=True)
-            #     except:
-            #         pause(5)
-            #         print("retrying opening global model")
-            #         try:
-            #             model_global = np.load(global_model, allow_pickle=True)
-            #         except:
-            #             print("halting aggregation")
-            #             stop_aggregation = True
-            #
-            #     if not stop_aggregation:
-            #         # print("updating from global model inside the parmeter server")
-            #         for k in range(cfa_consensus.layers):
-            #             # model_weights[k] = model_weights[k]+ 0.5*(model_global[k]-model_weights[k])
-            #             model_weights[k] = model_global[k]
-            #         model.set_weights(model_weights.tolist())
-            #
-            #     while not os.path.isfile(global_epoch):
-            #         # implementing consensus
-            #         print("waiting")
-            #         pause(1)
-            #     try:
-            #         epoch_global = np.load(global_epoch, allow_pickle=True)
-            #     except:
-            #         pause(5)
-            #         print("retrying opening global epoch counter")
-            #         try:
-            #             epoch_global = np.load(global_epoch, allow_pickle=True)
-            #         except:
-            #             print("halting aggregation")
 
             del model_weights
 
