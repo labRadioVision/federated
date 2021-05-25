@@ -181,6 +181,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
         # backup the model and the model target
         model = models.load_model(checkpointpath1)
+        model_valid = create_q_model()
         data_history = []
         label_history = []
         local_model_parameters = np.load(outfile_models, allow_pickle=True)
@@ -194,6 +195,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
     else:
         train_start = True
         model = create_q_model()
+        model_valid = create_q_model()
         data_history = []
         label_history = []
         frame_count = 0
@@ -360,6 +362,24 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
         # validation tool for device 'device_index'
         if epoch_count > validation_start and frame_count % number_of_batches == 0:
             avg_cost = 0.
+            # One training step using full training dataset (as new task)
+            obs, labels = data_handle.getRandomTestData(batch_size)
+            data_valid = preprocess_observation(np.squeeze(obs), batch_size)
+            data_sample = np.array(data_valid)
+            label_sample = np.array(labels)
+            masks = tf.one_hot(label_sample, n_outputs)
+            model_valid.set_weights(model.get_weights())
+            with tf.GradientTape() as tape:
+                # Train the model on data samples
+                classes = model_valid(data_sample)
+                # Apply the masks
+                class_v = tf.reduce_sum(tf.multiply(classes, masks), axis=1)
+                # Calculate loss
+                loss = loss_function(label_sample, class_v)
+            # Backpropagation
+            grads = tape.gradient(loss, model.trainable_variables)
+            optimizer.apply_gradients(zip(grads, model_valid.trainable_variables))
+
             for i in range(number_of_batches_for_validation):
                 obs_valid, labels_valid = data_handle.getTestData(batch_size, i)
                 # obs_valid, labels_valid = data_handle.getRandomTestData(batch_size)
@@ -368,7 +388,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                 label_sample = np.array(labels_valid)
                 # Create a mask to calculate loss
                 masks = tf.one_hot(label_sample, n_outputs)
-                classes = model(data_sample)
+                classes = model_valid(data_sample)
                 # Apply the masks
                 class_v = tf.reduce_sum(tf.multiply(classes, masks), axis=1)
                 # Calculate loss
