@@ -377,7 +377,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                 # Calculate loss
                 loss = loss_function(label_sample, class_v)
             # Backpropagation
-            grads = tape.gradient(loss, model.trainable_variables)
+            grads = tape.gradient(loss, model_valid.trainable_variables)
             optimizer.apply_gradients(zip(grads, model_valid.trainable_variables))
 
             for i in range(number_of_batches_for_validation):
