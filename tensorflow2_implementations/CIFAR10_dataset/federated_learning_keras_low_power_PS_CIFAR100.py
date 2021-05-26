@@ -133,20 +133,6 @@ loss_function = keras.losses.Huber()
 # sio.savemat("results/matlab/CFA_scheduling_devices_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}.mat".format(devices, args.N, number_of_batches, batch_size, args.noniid_assignment, args.run), dict_0)
 
 
-def get_noniid_data(total_training_size, devices, batch_size):
-    samples = np.random.random_integers(batch_size, total_training_size - batch_size * (devices - 1),
-                                        devices)  # create random numbers
-    samples = samples / np.sum(samples, axis=0) * total_training_size  # force them to sum to totals
-    # Ignore the following if you don't need integers
-    samples = np.round(samples)  # transform them into integers
-    remainings = total_training_size - np.sum(samples, axis=0)  # check if there are corrections to be done
-    step = 1 if remainings > 0 else -1
-    while remainings != 0:
-        i = np.random.randint(devices)
-        if samples[i] + step >= 0:
-            samples[i] += step
-            remainings -= step
-    return samples
 ####
 
 def preprocess_observation(obs, batch_size):
@@ -590,6 +576,19 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
 
 if __name__ == "__main__":
+
+    # GPU memory growth limitation
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+                logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+                print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
 
     if args.resume == 0: # clear all files
         # DELETE TEMPORARY CACHE FILES

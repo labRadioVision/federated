@@ -14,7 +14,8 @@ import warnings
 import glob
 import datetime
 import scipy.io as sio
-import multiprocessing
+# import multiprocessing
+import threading
 import math
 from matplotlib.pyplot import pause
 import time
@@ -24,7 +25,7 @@ import time
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, 0 to start from the beginning", type=float)
-parser.add_argument('-PS', default=0, help="set 1 to enable PS server and FedAvg, set 0 to disable PS", type=float)
+parser.add_argument('-PS', default=1, help="set 1 to enable PS server and FedAvg, set 0 to disable PS", type=float)
 parser.add_argument('-consensus', default=0, help="set 1 to enable consensus, set 0 to disable", type=float)
 parser.add_argument('-mu', default=0.001, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-eps', default=1, help="sets the mixing parameters for model averaging (CFA)", type=float)
@@ -579,14 +580,14 @@ if __name__ == "__main__":
                 start_index = 0
             else:
                 start_index = start_index + int(samples[ii-1])
-            t.append(multiprocessing.Process(target=processData, args=(ii, start_index, int(samples[ii]), federated, validation_train, number_of_batches, parameter_server, samples)))
-            t[ii].start()
+            t = threading.Thread(target=processData, args=(ii, start_index, int(samples[ii]), federated, validation_train, number_of_batches, parameter_server, samples))
+            t.start()
 
         # last process is for the target server
         if parameter_server:
             print("Target server starting with active devices {}".format(active_devices_per_round))
-            t.append(multiprocessing.Process(target=processParameterServer, args=(devices, active_devices_per_round, federated, refresh_server)))
-            t[devices].start()
+            t = threading.Thread(target=processParameterServer, args=(devices, active_devices_per_round, federated, refresh_server))
+            t.start()
     else: # run centralized learning on device 0 (data center)
         processData(0, 0, training_set_per_device*devices, federated, validation_train, number_of_batches, parameter_server, samples)
 
