@@ -29,7 +29,7 @@ parser.add_argument('-consensus', default=0, help="set 1 to enable consensus, se
 parser.add_argument('-mu', default=0.001, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-eps', default=1, help="sets the mixing parameters for model averaging (CFA)", type=float)
 parser.add_argument('-target', default=0.5, help="sets the target loss to stop federation", type=float)
-parser.add_argument('-K', default=40, help="sets the number of network devices", type=int)
+parser.add_argument('-K', default=30, help="sets the number of network devices", type=int)
 parser.add_argument('-Ka', default=20, help="sets the number of active devices per round in FA (<= K)", type=int)
 parser.add_argument('-N', default=1, help="sets the max. number of neighbors per device per round in CFA", type=int)
 parser.add_argument('-samp', default=500, help="sets the number samples per device", type=int)
@@ -102,6 +102,7 @@ validation_start = 1 # start validation in epochs
 # Using huber loss for stability
 loss_function = keras.losses.Huber()
 # tf.keras.regularizers.l2(l2=0.01, **kwargs)
+
 
 def get_noniid_data(total_training_size, devices, batch_size):
     samples = np.random.random_integers(batch_size, total_training_size - batch_size * (devices - 1),
@@ -487,6 +488,19 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
 
 if __name__ == "__main__":
+
+    # GPU memory growth limitation
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+                logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+                print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
 
     if args.resume == 0: # clear all files
         # DELETE TEMPORARY CACHE FILES
