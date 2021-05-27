@@ -1,5 +1,5 @@
 from DataSets import CIFARData
-from consensus.consensus_v3 import CFA_process
+# from consensus.consensus_v3 import CFA_process
 from consensus.parameter_server_v2 import Parameter_Server
 # use only for consensus , PS only for energy efficiency
 # from ReplayMemory import ReplayMemory
@@ -299,7 +299,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
     # time_count = (end - start)
     # print(Training time"time_count)
     # create a consensus object
-    cfa_consensus = CFA_process(devices, device_index, args.N)
+    # cfa_consensus = CFA_process(devices, device_index, args.N)
 
     while True:  # Run until solved
         # collect 1 batch
@@ -530,7 +530,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
 
 
-                    if cfa_consensus.getTrainingStatusFromNeightbor():
+                    if training_end:
                         # a neighbor completed the training, with loss < target, transfer learning is thus applied (the device will copy and reuse the same model)
                         training_signal = True # stop local learning, just do validation
             else:
