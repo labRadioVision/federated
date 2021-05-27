@@ -289,7 +289,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
     training_end = False
 
-    model_weights = model.get_weights()
+    model_weights = np.asarray(model.get_weights())
     layers_num = model_weights.size
 
     # create a data object (here radar data)
