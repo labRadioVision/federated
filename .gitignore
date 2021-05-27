@@ -4,3 +4,6 @@
 *.npz
 *.mat
 *.h5
+*.npy
+tensorflow2_implementations/CIFAR10_dataset/federated_learning_keras_consensus_FL_CIFAR100_threading.py
+tensorflow2_implementations/CIFAR10_dataset/consensus/consensus_v3_threading.py

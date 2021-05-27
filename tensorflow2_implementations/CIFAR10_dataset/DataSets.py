@@ -3,9 +3,10 @@ import tensorflow as tf
 import numpy as np
 import scipy.io as sio
 import random
-import threading
+#import threading
 # from tensorflow.keras.utils import to_categorical
-print_lock = threading.Lock()
+# print_lock = threading.Lock()
+
 class CIFARData:
     def __init__(self, device_index, start_samples, samples, validation_train, random_data_distribution=0):
         (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar100.load_data()
@@ -14,8 +15,7 @@ class CIFARData:
         self.start_samples = start_samples
         self.validation_train = 50000
         self.validation_test = 10000
-        with print_lock:
-            x_train = (x_train.astype('float32').clip(0)) / 255
+        x_train = (x_train.astype('float32').clip(0)) / 255
         if random_data_distribution == 1:
             s_list = random.sample(range(self.validation_train), self.samples)
         else:
