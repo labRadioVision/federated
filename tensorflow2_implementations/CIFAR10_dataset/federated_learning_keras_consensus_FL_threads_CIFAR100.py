@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, 0 to start from the beginning", type=float)
 parser.add_argument('-PS', default=0, help="set 1 to enable PS server and FedAvg, set 0 to disable PS", type=float)
-parser.add_argument('-consensus', default=0, help="set 1 to enable consensus, set 0 to disable", type=float)
+parser.add_argument('-consensus', default=1, help="set 1 to enable consensus, set 0 to disable", type=float)
 parser.add_argument('-mu', default=0.001, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-eps', default=1, help="sets the mixing parameters for model averaging (CFA)", type=float)
 parser.add_argument('-target', default=0.5, help="sets the target loss to stop federation", type=float)
@@ -581,6 +581,18 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
 
 if __name__ == "__main__":
+    # GPU memory growth limitation
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+                logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+                print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
 
     if args.resume == 0: # clear all files
         # DELETE TEMPORARY CACHE FILES
