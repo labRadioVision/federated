@@ -30,15 +30,15 @@ parser.add_argument('-consensus', default=0, help="set 1 to enable consensus, se
 parser.add_argument('-mu', default=0.001, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-eps', default=1, help="sets the mixing parameters for model averaging (CFA)", type=float)
 parser.add_argument('-target', default=0.5, help="sets the target loss to stop federation", type=float)
-parser.add_argument('-K', default=100, help="sets the number of network devices", type=int)
+parser.add_argument('-K', default=30, help="sets the number of network devices", type=int)
 parser.add_argument('-Ka', default=20, help="sets the number of active devices per round in FA (<= K)", type=int)
 parser.add_argument('-N', default=1, help="sets the max. number of neighbors per device per round in CFA", type=int)
-parser.add_argument('-Ka_consensus', default=30, help="sets the number of active devices for consensus", type=int)
-parser.add_argument('-samp', default=500, help="sets the number samples per device", type=int)
+parser.add_argument('-Ka_consensus', default=20, help="sets the number of active devices for consensus", type=int)
+parser.add_argument('-samp', default=1000, help="sets the number samples per device", type=int)
 parser.add_argument('-noniid_assignment', default=0, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
 parser.add_argument('-run', default=0, help=" set the run id", type=int)
 parser.add_argument('-random_data_distribution', default=0, help=" set 0 for fixed distribution, 1 for time-varying", type=int)
-parser.add_argument('-batches', default=5, help="sets the number of batches per learning round", type=int)
+parser.add_argument('-batches', default=10, help="sets the number of batches per learning round", type=int)
 parser.add_argument('-batch_size', default=100, help="sets the batch size per learning round", type=int)
 parser.add_argument('-graph', default=6, help="sets the input graph: 0 for default graph, >0 uses the input graph in vGraph.mat, and choose one graph from the available adjacency matrices", type=int)
 parser.add_argument('-modelselection', default=0, help="sets the model: 0 for lenet-1", type=int)
@@ -427,7 +427,8 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             # update local model
             cfa_consensus.update_local_model(model_weights)
             # neighbor = cfa_consensus.get_connectivity(device_index, args.N, devices) # fixed neighbor
-
+            np.random.seed(1)
+            tf.random.set_seed(1)  # common initialization
             if not train_start:
                 if federated and not training_signal:
                     eps_c = 1 / (args.N + 1)
