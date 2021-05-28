@@ -25,14 +25,14 @@ warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, 0 to start from the beginning", type=float)
 parser.add_argument('-PS', default=0, help="set 1 to enable PS server and FedAvg, set 0 to disable PS", type=float)
-parser.add_argument('-consensus', default=1, help="set 1 to enable consensus, set 0 to disable", type=float)
+parser.add_argument('-consensus', default=0, help="set 1 to enable consensus, set 0 to disable", type=float)
 parser.add_argument('-mu', default=0.001, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-eps', default=1, help="sets the mixing parameters for model averaging (CFA)", type=float)
 parser.add_argument('-target', default=0.5, help="sets the target loss to stop federation", type=float)
-parser.add_argument('-K', default=30, help="sets the number of network devices", type=int)
+parser.add_argument('-K', default=100, help="sets the number of network devices", type=int)
 parser.add_argument('-Ka', default=20, help="sets the number of active devices per round in FA (<= K)", type=int)
 parser.add_argument('-N', default=1, help="sets the max. number of neighbors per device per round in CFA", type=int)
-parser.add_argument('-Ka_consensus', default=20, help="sets the number of active devices for consensus", type=int)
+parser.add_argument('-Ka_consensus', default=30, help="sets the number of active devices for consensus", type=int)
 parser.add_argument('-samp', default=500, help="sets the number samples per device", type=int)
 parser.add_argument('-noniid_assignment', default=0, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
 parser.add_argument('-run', default=0, help=" set the run id", type=int)
@@ -433,6 +433,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                     # apply consensus for model parameter
                     # neighbor = np.random.choice(np.arange(devices), args.N, p=Probabilities, replace=False) # choose neighbor
                     neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N, replace=False) # choose neighbor
+                    # print(indexes_tx[:, epoch_count - 1])
                     while neighbor == device_index:
                         neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N,
                                                     replace=False)  # choose neighbor

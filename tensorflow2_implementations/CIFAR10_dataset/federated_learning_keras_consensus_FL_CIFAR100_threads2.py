@@ -53,7 +53,7 @@ n_outputs = 100  # 6 classes
 # optimizer = keras.optimizers.Adam(learning_rate=args.mu, clipnorm=1.0)
 optimizer = keras.optimizers.SGD(learning_rate=args.mu, momentum=0.9)
 condition = args.modelselection
-
+fun_lock = threading.RLock()
 
 if args.consensus == 1:
     federated = True
@@ -118,7 +118,7 @@ number_of_batches_for_validation = int(validation_test/batch_size)
 
 print("Number of batches for learning {}".format(number_of_batches))
 
-max_lag = 30 # consensus max delay 2= 2 epochs max
+max_lag = 3 # consensus max delay 2= 2 epochs max
 refresh_server = 1 # refresh server updates (in sec)
 
 validation_start = 1 # start validation in epochs
@@ -290,8 +290,9 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
     training_end = False
 
-    model_weights = np.asarray(model.get_weights())
-    layers_num = model_weights.size
+    globals()['model_weights_%s' % device_index] = np.asarray(model.get_weights())
+
+    layers_num = globals()['model_weights_%s' % device_index].size
 
     # create a data object (here radar data)
     # start = time.time()
@@ -323,11 +324,11 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                 else:
                     # stop all computing, just save the previous model
                     training_signal = True
-                    model_weights = np.asarray(model.get_weights())
+                    globals()['model_weights_%s' % device_index] = np.asarray(model.get_weights())
                     model.save(checkpointpath1, include_optimizer=True, save_format='h5')
                     np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
                          training_end=training_end, epoch_count=epoch_count, loss=running_loss)
-                    np.save(outfile_models, model_weights)
+                    np.save(outfile_models, globals()['model_weights_%s' % device_index])
             # check scheduling for parameter server
             if parameter_server:
                 while not os.path.isfile(global_epoch):
@@ -378,11 +379,11 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                     model.set_weights(model_global.tolist())
 
                 if training_signal:
-                    model_weights = np.asarray(model.get_weights())
+                    globals()['model_weights_%s' % device_index] = np.asarray(model.get_weights())
                     model.save(checkpointpath1, include_optimizer=True, save_format='h5')
                     np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
                              training_end=training_end, epoch_count=epoch_count, loss=running_loss)
-                    np.save(outfile_models, model_weights)
+                    np.save(outfile_models, globals()['model_weights_%s' % device_index])
             # check schedulting for parameter server
 
         # Local learning update every "number of batches" batches
@@ -417,11 +418,11 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             data_history = []
             label_history = []
 
-            model_weights = np.asarray(model.get_weights())
+            globals()['model_weights_%s' % device_index] = np.asarray(model.get_weights())
             model.save(checkpointpath1, include_optimizer=True, save_format='h5')
             np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
                      training_end=training_end, epoch_count=epoch_count, loss=running_loss)
-            np.save(outfile_models, model_weights)
+            np.save(outfile_models, globals()['model_weights_%s' % device_index])
 
 
             #  Consensus round
@@ -519,12 +520,14 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                                 print("detected training end")
                                 # it is reasonable to replace local model with the received one as succesful, stop model averaging with other neighbors
                                 for k in range(layers_num):
-                                    model_weights[k] = neighbor_weights[-1][k]
+                                    globals()['model_weights_%s' % device_index][k] = neighbor_weights[-1][k]
                                 break
                             else:  # apply model averaging
                                 for k in range(layers_num):
-                                    model_weights[k] = model_weights[k] + eps_t_control * (
-                                                neighbor_weights[q][k] - model_weights[k])
+                                    with fun_lock:
+                                        globals()['model_weights_%s' % device_index][k] = globals()['model_weights_%s' % device_index][k] + eps_t_control * (neighbor_weights[q][k] - globals()['model_weights_%s' % device_index][k])
+                                    #print(neighbor_weights[q][k] - model_weights[k])
+                                    #model_weights[k] = model_weights[k]
                                     # self.local_weights[k] = self.local_weights[k] + eps_t_control * (neighbor_weights[k] - self.local_weights[k])
                         del neighbor_weights
 
@@ -538,7 +541,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                 print("Warm up")
                 train_start = False
 
-            model.set_weights(model_weights.tolist())
+            model.set_weights(globals()['model_weights_%s' % device_index].tolist())
 
         #start = time.time()
         # validation tool for device 'device_index'
@@ -559,7 +562,8 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                 loss = loss_function(label_sample, class_v)
                 avg_cost += loss / number_of_batches_for_validation  # Training loss
             epoch_loss_history.append(avg_cost)
-            print("Device {} epoch count {}, validation loss {:.2f}".format(device_index, epoch_count,
+            with fun_lock:
+                print("Device {} epoch count {}, validation loss {:.2f}".format(device_index, epoch_count,
                                                                                  avg_cost))
             # mean loss for last 5 epochs
             running_loss = np.mean(epoch_loss_history[-1:])
@@ -568,14 +572,15 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
         #print(time_count)
 
         if running_loss < target_loss:  # Condition to consider the task solved
-            print("Solved for device {} at epoch {} with average loss {:.2f} !".format(device_index, epoch_count, running_loss))
+            with fun_lock:
+                print("Solved for device {} at epoch {} with average loss {:.2f} !".format(device_index, epoch_count, running_loss))
             training_end = True
-            model_weights = np.asarray(model.get_weights())
+            globals()['model_weights_%s' % device_index] = np.asarray(model.get_weights())
             model.save(checkpointpath1, include_optimizer=True, save_format='h5')
             # model_target.save(checkpointpath2, include_optimizer=True, save_format='h5')
             np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
                      training_end=training_end, epoch_count=epoch_count, loss=running_loss)
-            np.save(outfile_models, model_weights)
+            np.save(outfile_models, globals()['model_weights_%s' % device_index])
 
             if federated:
                 dict_1 = {"epoch_loss_history": epoch_loss_history, "federated": federated,
@@ -615,14 +620,15 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             break
 
         if epoch_count > max_epochs:  # stop simulation
-            print("Unsolved for device {} at epoch {}!".format(device_index, epoch_count))
+            with fun_lock:
+                print("Unsolved for device {} at epoch {}!".format(device_index, epoch_count))
             training_end = True
-            model_weights = np.asarray(model.get_weights())
+            globals()['model_weights_%s' % device_index] = np.asarray(model.get_weights())
             model.save(checkpointpath1, include_optimizer=True, save_format='h5')
             # model_target.save(checkpointpath2, include_optimizer=True, save_format='h5')
             np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
                      training_end=training_end, epoch_count=epoch_count, loss=running_loss)
-            np.save(outfile_models, model_weights)
+            np.save(outfile_models, globals()['model_weights_%s' % device_index])
 
             if federated:
                 dict_1 = {"epoch_loss_history": epoch_loss_history, "federated": federated,
@@ -746,15 +752,18 @@ if __name__ == "__main__":
                 start_index = 0
             else:
                 start_index = start_index + int(samples[ii-1])
-            t = threading.Thread(target=processData, args=(ii, start_index, int(samples[ii]), federated, validation_train, number_of_batches, parameter_server, samples))
-            t.start()
+            t.append(threading.Thread(target=processData, args=(ii, start_index, int(samples[ii]), federated, validation_train, number_of_batches, parameter_server, samples)))
+            t[ii].start()
 
         # last process is for the target server
         if parameter_server:
             print("Target server starting with active devices {}".format(active_devices_per_round))
-            t = threading.Thread(target=processParameterServer, args=(devices, active_devices_per_round, federated))
-            t.start()
+            t.append(threading.Thread(target=processParameterServer, args=(devices, active_devices_per_round, federated)))
+            t[devices].start()
     else: # run centralized learning on device 0 (data center)
         processData(0, 0, training_set_per_device*devices, federated, validation_train, number_of_batches, parameter_server, samples)
+
+    for prc in t:
+        prc.join()
 
     exit(0)
