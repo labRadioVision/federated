@@ -248,8 +248,8 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
     global_model = 'results/model_global.npy'
     global_epoch = 'results/epoch_global.npy'
 
-    np.random.seed(1)
-    tf.random.set_seed(1)  # common initialization
+    # np.random.seed(1)
+    # tf.random.set_seed(1)  # common initialization
 
     learning_rate = args.mu
     learning_rate_local = learning_rate
@@ -650,7 +650,8 @@ if __name__ == "__main__":
     # parameter_server = False
     # processData(0, validation_train, federated, validation_train, number_of_batches, parameter_server)
     ######################################################################################
-
+    np.random.seed(1)
+    tf.random.set_seed(1)  # common initialization
     if federated or parameter_server:
         for ii in range(devices):
             # position start
