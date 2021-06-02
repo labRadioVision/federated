@@ -1,4 +1,5 @@
 from DataSets import MnistData
+from DataSets_task import MnistData_task
 from consensus.consensus_v3 import CFA_process
 from consensus.parameter_server_v2 import Parameter_Server
 # use only for consensus , PS only for energy efficiency
@@ -14,7 +15,8 @@ import warnings
 import glob
 import datetime
 import scipy.io as sio
-import multiprocessing
+# import multiprocessing
+import threading
 import math
 from matplotlib.pyplot import pause
 import time
@@ -28,11 +30,11 @@ parser.add_argument('-PS', default=1, help="set 1 to enable PS server and FedAvg
 parser.add_argument('-consensus', default=0, help="set 1 to enable consensus, set 0 to disable", type=float)
 parser.add_argument('-mu', default=0.001, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-eps', default=1, help="sets the mixing parameters for model averaging (CFA)", type=float)
-parser.add_argument('-target', default=0.05, help="sets the target loss to stop federation", type=float)
+parser.add_argument('-target', default=0.1, help="sets the target loss to stop federation", type=float)
 parser.add_argument('-K', default=30, help="sets the number of network devices", type=int)
 parser.add_argument('-Ka', default=20, help="sets the number of active devices per round in FA (<= K)", type=int)
 parser.add_argument('-N', default=1, help="sets the max. number of neighbors per device per round in CFA", type=int)
-parser.add_argument('-Ka_consensus', default=30, help="sets the number of active devices for consensus", type=int)
+parser.add_argument('-Ka_consensus', default=20, help="sets the number of active devices for consensus", type=int)
 parser.add_argument('-samp', default=500, help="sets the number samples per device", type=int)
 parser.add_argument('-noniid_assignment', default=0, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
 parser.add_argument('-run', default=0, help=" set the run id", type=int)
@@ -266,7 +268,9 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
     optimizer = keras.optimizers.Adam(learning_rate=args.mu, clipnorm=1.0)
     # create a data object (here radar data)
     # start = time.time()
-    data_handle = MnistData(device_index, start_samples, samples, full_data_size, args.random_data_distribution)
+    # data_handle = MnistData(device_index, start_samples, samples, full_data_size, args.random_data_distribution)
+    data_handle = MnistData_task(device_index, start_samples, samples, full_data_size, args.random_data_distribution)
+
     # end = time.time()
     # time_count = (end - start)
     # print(Training time"time_count)
@@ -670,13 +674,13 @@ if __name__ == "__main__":
                 start_index = 0
             else:
                 start_index = start_index + int(samples[ii-1])
-            t.append(multiprocessing.Process(target=processData, args=(ii, start_index, int(samples[ii]), federated, validation_train, number_of_batches, parameter_server, samples)))
+            t.append(threading.Thread(target=processData, args=(ii, start_index, int(samples[ii]), federated, validation_train, number_of_batches, parameter_server, samples)))
             t[ii].start()
 
         # last process is for the target server
         if parameter_server:
             print("Target server starting with active devices {}".format(active_devices_per_round))
-            t.append(multiprocessing.Process(target=processParameterServer, args=(devices, active_devices_per_round, federated)))
+            t.append(threading.Thread(target=processParameterServer, args=(devices, active_devices_per_round, federated)))
             t[devices].start()
     else: # run centralized learning on device 0 (data center)
         processData(0, 0, training_set_per_device*devices, federated, validation_train, number_of_batches, parameter_server, samples)

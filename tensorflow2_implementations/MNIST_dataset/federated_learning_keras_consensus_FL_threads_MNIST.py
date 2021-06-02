@@ -1,8 +1,8 @@
 from DataSets import MnistData
-from DataSets_task import  MnistData_task
-from consensus.consensus_v2 import CFA_process
-from consensus.parameter_server import Parameter_Server
-# best use with PS active
+from DataSets_task import MnistData_task
+from consensus.consensus_v3 import CFA_process
+from consensus.parameter_server_v2 import Parameter_Server
+# use only for consensus , PS only for energy efficiency
 # from ReplayMemory import ReplayMemory
 import numpy as np
 import os
@@ -26,14 +26,15 @@ import time
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, 0 to start from the beginning", type=float)
-parser.add_argument('-PS', default=1, help="set 1 to enable PS server and FedAvg, set 0 to disable PS", type=float)
-parser.add_argument('-consensus', default=0, help="set 1 to enable consensus, set 0 to disable", type=float)
-parser.add_argument('-mu', default=0.00025, help="sets the learning rate for all setups", type=float)
+parser.add_argument('-PS', default=0, help="set 1 to enable PS server and FedAvg, set 0 to disable PS", type=float)
+parser.add_argument('-consensus', default=1, help="set 1 to enable consensus, set 0 to disable", type=float)
+parser.add_argument('-mu', default=0.001, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-eps', default=1, help="sets the mixing parameters for model averaging (CFA)", type=float)
 parser.add_argument('-target', default=0.1, help="sets the target loss to stop federation", type=float)
 parser.add_argument('-K', default=30, help="sets the number of network devices", type=int)
 parser.add_argument('-Ka', default=20, help="sets the number of active devices per round in FA (<= K)", type=int)
 parser.add_argument('-N', default=1, help="sets the max. number of neighbors per device per round in CFA", type=int)
+parser.add_argument('-Ka_consensus', default=20, help="sets the number of active devices for consensus", type=int)
 parser.add_argument('-samp', default=500, help="sets the number samples per device", type=int)
 parser.add_argument('-noniid_assignment', default=0, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
 parser.add_argument('-run', default=0, help=" set the run id", type=int)
@@ -41,10 +42,14 @@ parser.add_argument('-random_data_distribution', default=0, help=" set 0 for fix
 parser.add_argument('-batches', default=5, help="sets the number of batches per learning round", type=int)
 parser.add_argument('-batch_size', default=100, help="sets the batch size per learning round", type=int)
 parser.add_argument('-graph', default=6, help="sets the input graph: 0 for default graph, >0 uses the input graph in vGraph.mat, and choose one graph from the available adjacency matrices", type=int)
+parser.add_argument('-modelselection', default=0, help="sets the model: 0 for lenet-1", type=int)
 args = parser.parse_args()
 
 devices = args.K  # NUMBER OF DEVICES
 active_devices_per_round = args.Ka
+max_epochs = 200
+condition = args.modelselection
+
 
 if args.consensus == 1:
     federated = True
@@ -55,6 +60,30 @@ elif args.PS == 1:
 else: # CL: CENTRALIZED LEARNING ON DEVICE 0 (DATA CENTER)
     federated = False
     parameter_server = False
+
+
+
+################# consensus, create the scheduling function ################
+scheduling_tx = np.zeros((devices, max_epochs*2), dtype=int)
+if parameter_server and not federated:
+    indexes_tx = np.zeros((args.Ka, max_epochs*2), dtype=int)
+    for k in range(max_epochs*2):
+        # inds = np.random.choice(devices, args.Ka, replace=False)
+        sr = devices - args.Ka + 1
+        sr2 = k % sr
+        inds = np.arange(sr2, args.Ka + sr2)
+        scheduling_tx[inds, k] = 1
+        indexes_tx[:,k] = inds
+elif not parameter_server and federated:
+    indexes_tx = np.zeros((args.Ka_consensus, max_epochs*2), dtype=int)
+    for k in range(max_epochs*2):
+        # inds = np.random.choice(devices, args.Ka_consensus, replace=False)
+        sr = devices - args.Ka_consensus + 1
+        sr2 = k % sr
+        inds = np.arange(sr2, args.Ka_consensus + sr2)
+        scheduling_tx[inds, k] = 1
+        indexes_tx[:, k] = inds
+###########################################################################
 
 if active_devices_per_round > devices:
     active_devices_per_round = devices
@@ -87,17 +116,20 @@ number_of_batches_for_validation = int(validation_test/batch_size)
 
 print("Number of batches for learning {}".format(number_of_batches))
 
-max_lag = number_of_batches*2 # consensus max delay 2= 2 epochs max
+max_lag = 1 # consensus max delay 2= 2 epochs max
 refresh_server = 1 # refresh server updates (in sec)
 
 n_outputs = 10  # 6 classes
-
-max_epochs = 200
 
 validation_start = 1 # start validation in epochs
 
 # Using huber loss for stability
 loss_function = keras.losses.Huber()
+
+# save scheduling format
+# dict_0 = {"scheduling": scheduling_tx, "devices_scheduling": indexes_tx}
+# sio.savemat("results/matlab/CFA_scheduling_devices_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}.mat".format(devices, args.N, number_of_batches, batch_size, args.noniid_assignment, args.run), dict_0)
+
 
 def get_noniid_data(total_training_size, devices, batch_size):
     samples = np.random.random_integers(batch_size, total_training_size - batch_size * (devices - 1),
@@ -124,11 +156,27 @@ def create_q_model():
     # Network defined by the Deepmind paper
     inputs = layers.Input(shape=(28, 28, 1,))
 
-    layer1 = layers.Conv2D(32, kernel_size=(3, 3), activation="relu")(inputs)
-    layer2 = layers.MaxPooling2D(pool_size=(2, 2))(layer1)
-    layer3 = layers.Conv2D(64, kernel_size=(3, 3), activation="relu")(layer2)
-    layer4 = layers.MaxPooling2D(pool_size=(2, 2))(layer3)
-    layer5 = layers.Flatten()(layer4)
+    if condition == 0:
+        # lenet - 1
+     layer1 = layers.Conv2D(4, kernel_size=(5, 5), activation="relu")(inputs)
+     layer2 = layers.AveragePooling2D(pool_size=(2, 2))(layer1)
+     layer3 = layers.Conv2D(8, kernel_size=(5, 5), activation="relu")(layer2)
+     layer4 = layers.AveragePooling2D(pool_size=(2, 2))(layer3)
+     layer5 = layers.Flatten()(layer4)
+
+    elif condition == 1:
+        layer1 = layers.Conv2D(32, kernel_size=(3, 3), activation="relu")(inputs)
+        layer2 = layers.MaxPooling2D(pool_size=(2, 2))(layer1)
+        layer3 = layers.Conv2D(64, kernel_size=(3, 3), activation="relu")(layer2)
+        layer4 = layers.MaxPooling2D(pool_size=(2, 2))(layer3)
+        layer5 = layers.Flatten()(layer4)
+
+    else:
+        layer1 = layers.Conv2D(14, kernel_size=(3, 3), activation="relu")(inputs)
+        layer2 = layers.MaxPooling2D(pool_size=(2, 2))(layer1)
+        layer3 = layers.Conv2D(64, kernel_size=(3, 3), activation="relu")(layer2)
+        layer4 = layers.MaxPooling2D(pool_size=(2, 2))(layer3)
+        layer5 = layers.Flatten()(layer4)
 
     # Convolutions
     # layer1 = layers.Conv2D(32, 8, strides=4, activation="relu")(inputs)
@@ -145,17 +193,24 @@ def create_q_model():
 def processParameterServer(devices, active_devices_per_round, federated, refresh_server=1):
     model_global = create_q_model()
     model_parameters_initial = np.asarray(model_global.get_weights())
-    parameter_server = Parameter_Server(devices, model_parameters_initial, active_devices_per_round)
+    parameter_server = Parameter_Server(devices, model_parameters_initial, active_devices_per_round, indexes_tx)
     global_target_model = 'results/model_global.npy'
+    global_epoch = 'results/epoch_global.npy'
+    epoch_count = 0
     np.save(global_target_model, model_parameters_initial)
-    pause(5) # wait for neighbors
+    np.save(global_epoch, epoch_count)
+    pause(2) # wait for neighbors
     while True:
         pause(refresh_server) # refresh global model on every xx seconds
-        np.save(global_target_model, parameter_server.federated_target_weights_aggregation(epoch=0, aggregation_type=0))
         fileList = glob.glob('*.mat', recursive=False)
         if len(fileList) == devices:
             # stop the server
             break
+        else:
+            np.save(global_target_model, parameter_server.federated_target_weights_aggregation(epoch_count, aggregation_type=0))
+            epoch_count += 1
+            np.save(global_epoch, epoch_count)
+
 
 # execute for each deployed device
 def processData(device_index, start_samples, samples, federated, full_data_size, number_of_batches, parameter_server, sample_distribution):
@@ -164,9 +219,10 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
     outfile = 'results/dump_train_variables{}.npz'.format(device_index)
     outfile_models = 'results/dump_train_model{}.npy'.format(device_index)
     global_model = 'results/model_global.npy'
+    global_epoch = 'results/epoch_global.npy'
 
-    np.random.seed(1)
-    tf.random.set_seed(1)  # common initialization
+    #np.random.seed(1)
+    #tf.random.set_seed(1)  # common initialization
 
     learning_rate = args.mu
     learning_rate_local = learning_rate
@@ -202,14 +258,20 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
         epoch_count = 0
         running_loss = math.inf
 
+    if parameter_server:
+        epoch_global = 0
+
     training_end = False
 
+    a = model.get_weights()
     # set an arbitrary optimizer, here Adam is used
     optimizer = keras.optimizers.Adam(learning_rate=args.mu, clipnorm=1.0)
     # create a data object (here radar data)
-    # data_handle = MnistData(device_index, start_samples, samples, full_data_size, args.random_data_distribution)
+    # start = time.time()
     data_handle = MnistData_task(device_index, start_samples, samples, full_data_size, args.random_data_distribution)
-
+    # end = time.time()
+    # time_count = (end - start)
+    # print(Training time"time_count)
     # create a consensus object
     cfa_consensus = CFA_process(devices, device_index, args.N)
 
@@ -223,10 +285,85 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
         data_history.append(data_batch)
         label_history.append(labels)
 
+
+        if frame_count % number_of_batches == 0:
+            if not parameter_server:
+                epoch_count += 1
+            # check scheduling for federated
+            if federated:
+                if epoch_count == 1 or scheduling_tx[device_index, epoch_count] == 1:
+                    training_signal = False
+                else:
+                    # stop all computing, just save the previous model
+                    training_signal = True
+                    model_weights = np.asarray(model.get_weights())
+                    model.save(checkpointpath1, include_optimizer=True, save_format='h5')
+                    np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
+                         training_end=training_end, epoch_count=epoch_count, loss=running_loss)
+                    np.save(outfile_models, model_weights)
+            # check scheduling for parameter server
+            if parameter_server:
+                while not os.path.isfile(global_epoch):
+                    # implementing consensus
+                    print("waiting")
+                    pause(1)
+                try:
+                    epoch_global = np.load(global_epoch, allow_pickle=True)
+                except:
+                    pause(5)
+                    print("retrying opening global epoch counter")
+                    try:
+                        epoch_global = np.load(global_epoch, allow_pickle=True)
+                    except:
+                        print("failed reading global epoch")
+
+                if epoch_global == 0:
+                    training_signal = False
+
+                elif scheduling_tx[device_index, epoch_global] == 1:
+                    if epoch_global > epoch_count:
+                        epoch_count = epoch_global
+                        training_signal = False
+                    else:
+                        training_signal = True
+                else:
+                    # stop all computing, just save the previous model
+                    training_signal = True
+
+                # always refresh the local model using the PS one
+                stop_aggregation = False
+                while not os.path.isfile(global_model):
+                    # implementing consensus
+                    print("waiting")
+                    pause(1)
+                try:
+                    model_global = np.load(global_model, allow_pickle=True)
+                except:
+                    pause(5)
+                    print("retrying opening global model")
+                    try:
+                        model_global = np.load(global_model, allow_pickle=True)
+                    except:
+                        print("halting aggregation")
+                        stop_aggregation = True
+
+                if not stop_aggregation:
+                    model.set_weights(model_global.tolist())
+
+                if training_signal:
+                    model_weights = np.asarray(model.get_weights())
+                    model.save(checkpointpath1, include_optimizer=True, save_format='h5')
+                    np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
+                             training_end=training_end, epoch_count=epoch_count, loss=running_loss)
+                    np.save(outfile_models, model_weights)
+            # check schedulting for parameter server
+
         # Local learning update every "number of batches" batches
+        time_count = 0
         if frame_count % number_of_batches == 0 and not training_signal:
-            epoch_count += 1
+            # run local batches
             for i in range(number_of_batches):
+                start = time.time()
                 data_sample = np.array(data_history[i])
                 label_sample = np.array(label_history[i])
 
@@ -244,7 +381,10 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                 # Backpropagation
                 grads = tape.gradient(loss, model.trainable_variables)
                 optimizer.apply_gradients(zip(grads, model.trainable_variables))
-
+                end = time.time()
+                time_count = time_count + (end-start)/number_of_batches
+            if not parameter_server and not federated:
+                print('Average batch training time {:.2f}'.format(time_count))
             del data_history
             del label_history
             data_history = []
@@ -256,22 +396,26 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                      training_end=training_end, epoch_count=epoch_count, loss=running_loss)
             np.save(outfile_models, model_weights)
 
+
             #  Consensus round
             # update local model
             cfa_consensus.update_local_model(model_weights)
             # neighbor = cfa_consensus.get_connectivity(device_index, args.N, devices) # fixed neighbor
-            # neighbor = np.random.choice(np.arange(devices), args.N, p=Probabilities, replace=False) # choose neighbor
-            neighbor = np.random.choice(np.arange(devices), args.N, replace=False)  # choose neighbor
-            while neighbor == device_index:
-                neighbor = np.random.choice(np.arange(devices), args.N, replace=False)
-
+            np.random.seed(1)
+            tf.random.set_seed(1)  # common initialization
             if not train_start:
                 if federated and not training_signal:
                     eps_c = 1 / (args.N + 1)
                     # apply consensus for model parameter
+                    # neighbor = np.random.choice(np.arange(devices), args.N, p=Probabilities, replace=False) # choose neighbor
+                    neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N, replace=False) # choose neighbor
+                    while neighbor == device_index:
+                        neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N,
+                                                    replace=False)  # choose neighbor
                     print("Consensus from neighbor {} for device {}, local loss {:.2f}".format(neighbor, device_index,
                                                                                                loss.numpy()))
-                    model.set_weights(cfa_consensus.federated_weights_computing(neighbor, args.N, frame_count, eps_c, max_lag))
+
+                    model.set_weights(cfa_consensus.federated_weights_computing(neighbor, args.N, epoch_count, eps_c, max_lag))
                     if cfa_consensus.getTrainingStatusFromNeightbor():
                         # a neighbor completed the training, with loss < target, transfer learning is thus applied (the device will copy and reuse the same model)
                         training_signal = True # stop local learning, just do validation
@@ -280,35 +424,50 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                 train_start = False
 
             # check if parameter server is enabled
-            stop_aggregation = False
-            if parameter_server:
-                pause(refresh_server)
-                while not os.path.isfile(global_model):
-                    # implementing consensus
-                    print("waiting")
-                    pause(1)
-                try:
-                    model_global = np.load(global_model, allow_pickle=True)
-                except:
-                    pause(5)
-                    print("retrying opening global model")
-                    try:
-                        model_global = np.load(global_model, allow_pickle=True)
-                    except:
-                        print("halting aggregation")
-                        stop_aggregation = True
+            # stop_aggregation = False
 
-                if not stop_aggregation:
-                    # print("updating from global model inside the parmeter server")
-                    for k in range(cfa_consensus.layers):
-                        # model_weights[k] = model_weights[k]+ 0.5*(model_global[k]-model_weights[k])
-                        model_weights[k] = model_global[k]
-                    model.set_weights(model_weights.tolist())
+            # if parameter_server:
+            #     # pause(refresh_server)
+            #     while not os.path.isfile(global_model):
+            #         # implementing consensus
+            #         print("waiting")
+            #         pause(1)
+            #     try:
+            #         model_global = np.load(global_model, allow_pickle=True)
+            #     except:
+            #         pause(5)
+            #         print("retrying opening global model")
+            #         try:
+            #             model_global = np.load(global_model, allow_pickle=True)
+            #         except:
+            #             print("halting aggregation")
+            #             stop_aggregation = True
+            #
+            #     if not stop_aggregation:
+            #         # print("updating from global model inside the parmeter server")
+            #         for k in range(cfa_consensus.layers):
+            #             # model_weights[k] = model_weights[k]+ 0.5*(model_global[k]-model_weights[k])
+            #             model_weights[k] = model_global[k]
+            #         model.set_weights(model_weights.tolist())
+            #
+            #     while not os.path.isfile(global_epoch):
+            #         # implementing consensus
+            #         print("waiting")
+            #         pause(1)
+            #     try:
+            #         epoch_global = np.load(global_epoch, allow_pickle=True)
+            #     except:
+            #         pause(5)
+            #         print("retrying opening global epoch counter")
+            #         try:
+            #             epoch_global = np.load(global_epoch, allow_pickle=True)
+            #         except:
+            #             print("halting aggregation")
 
             del model_weights
 
 
-
+        #start = time.time()
         # validation tool for device 'device_index'
         if epoch_count > validation_start and frame_count % number_of_batches == 0:
             avg_cost = 0.
@@ -330,10 +489,12 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             print("Device {} epoch count {}, validation loss {:.2f}".format(device_index, epoch_count,
                                                                                  avg_cost))
             # mean loss for last 5 epochs
-            running_loss = np.mean(epoch_loss_history[-5:])
+            running_loss = np.mean(epoch_loss_history[-1:])
+        #end = time.time()
+        #time_count = (end - start)
+        #print(time_count)
 
-
-        if running_loss < target_loss or training_signal:  # Condition to consider the task solved
+        if running_loss < target_loss:  # Condition to consider the task solved
             print("Solved for device {} at epoch {} with average loss {:.2f} !".format(device_index, epoch_count, running_loss))
             training_end = True
             model_weights = np.asarray(model.get_weights())
@@ -342,12 +503,12 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
                      training_end=training_end, epoch_count=epoch_count, loss=running_loss)
             np.save(outfile_models, model_weights)
+
             if federated:
                 dict_1 = {"epoch_loss_history": epoch_loss_history, "federated": federated,
-                          "parameter_server": parameter_server, "devices": devices, "neighbors": args.N,
-                          "active_devices": args.Ka_consensus,
-                          "batches": number_of_batches, "batch_size": batch_size, "samples": samples,
-                          "noniid": args.noniid_assignment, "data_distribution": args.random_data_distribution}
+                      "parameter_server": parameter_server, "devices": devices, "neighbors": args.N,
+                      "active_devices": args.Ka_consensus,
+                      "batches": number_of_batches, "batch_size": batch_size, "samples": samples, "noniid": args.noniid_assignment, "data_distribution": args.random_data_distribution}
             elif parameter_server:
                 dict_1 = {"epoch_loss_history": epoch_loss_history, "federated": federated,
                           "parameter_server": parameter_server, "devices": devices,
@@ -363,25 +524,21 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             if federated:
                 sio.savemat(
                     "results/matlab/CFA_device_{}_samples_{}_devices_{}_active_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
-                        device_index, samples, devices, args.Ka_consensus, args.N, number_of_batches, batch_size,
-                        args.noniid_assignment, args.run, args.random_data_distribution), dict_1)
+                        device_index, samples, devices, args.Ka_consensus, args.N, number_of_batches, batch_size, args.noniid_assignment, args.run, args.random_data_distribution), dict_1)
                 sio.savemat(
                     "CFA_device_{}_samples_{}_devices_{}_neighbors_{}_batches_{}_size{}.mat".format(
                         device_index, samples, devices, args.N, number_of_batches, batch_size), dict_1)
             elif parameter_server:
                 sio.savemat(
-                    "results/matlab/FA2_device_{}_samples_{}_devices_{}_active_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
-                        device_index, samples, devices, active_devices_per_round, number_of_batches, batch_size,
-                        args.noniid_assignment, args.run, args.random_data_distribution), dict_1)
+                    "results/matlab/FA_device_{}_samples_{}_devices_{}_active_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
+                        device_index, samples, devices, active_devices_per_round, number_of_batches, batch_size, args.noniid_assignment,args.run, args.random_data_distribution), dict_1)
                 sio.savemat(
-                    "FA2_device_{}_samples_{}_devices_{}_active_{}_batches_{}_size{}.mat".format(
-                        device_index, samples, devices, active_devices_per_round, number_of_batches, batch_size),
-                    dict_1)
-            else:  # CL
+                    "FA_device_{}_samples_{}_devices_{}_active_{}_batches_{}_size{}.mat".format(
+                        device_index, samples, devices, active_devices_per_round, number_of_batches, batch_size), dict_1)
+            else: # CL
                 sio.savemat(
-                    "results/matlab/CL_samples_{}_devices_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
-                        samples, devices, number_of_batches, batch_size,args.noniid_assignment, args.run, args.random_data_distribution), dict_1)
-
+                    "results/matlab/CL_samples_{}_devices_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(samples, devices, number_of_batches, batch_size,
+                                                                                                                         args.noniid_assignment, args.run, args.random_data_distribution), dict_1)
             break
 
         if epoch_count > max_epochs:  # stop simulation
@@ -393,6 +550,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
                      training_end=training_end, epoch_count=epoch_count, loss=running_loss)
             np.save(outfile_models, model_weights)
+
             if federated:
                 dict_1 = {"epoch_loss_history": epoch_loss_history, "federated": federated,
                           "parameter_server": parameter_server, "devices": devices, "neighbors": args.N,
@@ -421,11 +579,11 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                         device_index, samples, devices, args.N, number_of_batches, batch_size), dict_1)
             elif parameter_server:
                 sio.savemat(
-                    "results/matlab/FA2_device_{}_samples_{}_devices_{}_active_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
+                    "results/matlab/FA_device_{}_samples_{}_devices_{}_active_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
                         device_index, samples, devices, active_devices_per_round, number_of_batches, batch_size,
                         args.noniid_assignment, args.run, args.random_data_distribution), dict_1)
                 sio.savemat(
-                    "FA2_device_{}_samples_{}_devices_{}_active_{}_batches_{}_size{}.mat".format(
+                    "FA_device_{}_samples_{}_devices_{}_active_{}_batches_{}_size{}.mat".format(
                         device_index, samples, devices, active_devices_per_round, number_of_batches, batch_size),
                     dict_1)
             else:  # CL
@@ -433,7 +591,6 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                     "results/matlab/CL_samples_{}_devices_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
                         samples, devices, number_of_batches, batch_size,
                         args.noniid_assignment, args.run, args.random_data_distribution), dict_1)
-
             break
 
 
@@ -508,7 +665,8 @@ if __name__ == "__main__":
     # parameter_server = False
     # processData(0, validation_train, federated, validation_train, number_of_batches, parameter_server)
     ######################################################################################
-
+    np.random.seed(1)
+    tf.random.set_seed(1)  # common initialization
     if federated or parameter_server:
         for ii in range(devices):
             # position start
@@ -522,7 +680,7 @@ if __name__ == "__main__":
         # last process is for the target server
         if parameter_server:
             print("Target server starting with active devices {}".format(active_devices_per_round))
-            t.append(threading.Thread(target=processParameterServer, args=(devices, active_devices_per_round, federated, refresh_server)))
+            t.append(threading.Thread(target=processParameterServer, args=(devices, active_devices_per_round, federated)))
             t[devices].start()
     else: # run centralized learning on device 0 (data center)
         processData(0, 0, training_set_per_device*devices, federated, validation_train, number_of_batches, parameter_server, samples)
