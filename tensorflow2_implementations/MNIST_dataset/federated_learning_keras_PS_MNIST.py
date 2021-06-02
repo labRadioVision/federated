@@ -208,7 +208,11 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
     optimizer = keras.optimizers.Adam(learning_rate=args.mu, clipnorm=1.0)
     # create a data object (here radar data)
     # data_handle = MnistData(device_index, start_samples, samples, full_data_size, args.random_data_distribution)
-    data_handle = MnistData_task(device_index, start_samples, samples, full_data_size, args.random_data_distribution)
+    if args.noniid_assignment == 1:
+        data_handle = MnistData_task(device_index, start_samples, samples, full_data_size,
+                                     args.random_data_distribution)
+    else:
+        data_handle = MnistData(device_index, start_samples, samples, full_data_size, args.random_data_distribution)
 
     # create a consensus object
     cfa_consensus = CFA_process(devices, device_index, args.N)
@@ -495,11 +499,11 @@ if __name__ == "__main__":
     # samples = int(fraction_training/devices) # training samples per device
 
     ######################### Create a non-iid assignment  ##########################
-    if args.noniid_assignment == 1:
-        total_training_size = training_set_per_device * devices
-        samples = get_noniid_data(total_training_size, devices, batch_size)
-        while np.min(samples) < batch_size:
-            samples = get_noniid_data(total_training_size, devices, batch_size)
+    # if args.noniid_assignment == 1:
+    #     total_training_size = training_set_per_device * devices
+    #     samples = get_noniid_data(total_training_size, devices, batch_size)
+    #     while np.min(samples) < batch_size:
+    #         samples = get_noniid_data(total_training_size, devices, batch_size)
     #############################################################################
     print(samples)
 
