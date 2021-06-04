@@ -7,67 +7,24 @@ import math
 import time
 from matplotlib.pyplot import pause
 import os
+import tensorflow as tf
+from tensorflow import keras
 import glob
 from tensorflow.keras import layers
 from tensorflow.keras import models
 import warnings
 
-class CFA_process:
+class CFA_GE_process:
 
-    def __init__(self, devices, ii_saved_local, neighbors, federated=True, graph=0):
+    def __init__(self, devices, ii_saved_local, neighbors, federated=True, mu2=0.01, graph=0):
         self.federated = federated # true for federation active
         self.devices = devices # number of devices
         self.ii_saved_local = ii_saved_local # device index
         self.neighbors = neighbors # neighbors number (given the network topology)
         self.graph = graph
         self.training_end = False
-        if graph == 0:  # use k-degree network
-            self.neighbor_vec = self.get_connectivity(ii_saved_local, neighbors, devices) # neighbor list
-        else:
-            mat_content = self.getMobileNetwork_connectivity(self.ii_saved_local, self.neighbors, self.devices, 0)
-            self.neighbor_vec = np.asarray(mat_content[0], dtype=int)
+        self.optimizer2 = keras.optimizers.Adam(learning_rate=mu2)
 
-    def getMobileNetwork_connectivity(self, ii_saved_local, neighbors, devices, epoch):
-        graph_index = sio.loadmat('consensus/vGraph.mat')
-        dev = np.arange(1, devices + 1)
-        graph_mobile = graph_index['graph']
-        set = graph_mobile[ii_saved_local, :, epoch]
-        tot_neighbors = np.sum(set, dtype=np.uint8)
-        sets_neighbors_final = np.zeros(tot_neighbors, dtype=np.uint8)
-        counter = 0
-        for kk in range(devices):
-            if set[kk] == 1:
-                sets_neighbors_final[counter] = kk
-                counter = counter + 1
-        return sets_neighbors_final
-
-    def get_connectivity(self, ii_saved_local, neighbors, devices):
-        if neighbors < 2:
-            neighbors = 2 # set minimum to 2 neighbors
-        if (ii_saved_local == 0):
-            sets_neighbors_final = np.arange(ii_saved_local + 1, ii_saved_local + neighbors + 1)
-        elif (ii_saved_local == devices - 1):
-            sets_neighbors_final = np.arange(ii_saved_local - neighbors, ii_saved_local)
-        elif (ii_saved_local >= math.ceil(neighbors / 2)) and (
-                ii_saved_local <= devices - math.ceil(neighbors / 2) - 1):
-            sets_neighbors = np.arange(ii_saved_local - math.floor(neighbors / 2),
-                                       ii_saved_local + math.floor(neighbors / 2) + 1)
-            index_ii = np.where(sets_neighbors == ii_saved_local)
-            sets_neighbors_final = np.delete(sets_neighbors, index_ii)
-        else:
-            if (ii_saved_local - math.ceil(neighbors / 2) < 0):
-                sets_neighbors = np.arange(0, neighbors + 1)
-            else:
-                sets_neighbors = np.arange(devices - neighbors - 1, devices)
-            index_ii = np.where(sets_neighbors == ii_saved_local)
-            sets_neighbors_final = np.delete(sets_neighbors, index_ii)
-
-        if neighbors < 2:
-            neighbors_final = np.delete(sets_neighbors_final, 1)
-        else:
-            neighbors_final = sets_neighbors_final
-
-        return neighbors_final
 
 
     def federated_weights_computing(self, neighbor, neighbors, epoch_count, eps_t_control, epoch=0, max_lag=30):

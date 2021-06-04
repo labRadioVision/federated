@@ -35,7 +35,7 @@ parser.add_argument('-K', default=30, help="sets the number of network devices",
 parser.add_argument('-Ka', default=20, help="sets the number of active devices per round in FA (<= K)", type=int)
 parser.add_argument('-N', default=1, help="sets the max. number of neighbors per device per round in CFA", type=int)
 parser.add_argument('-samp', default=500, help="sets the number samples per device", type=int)
-parser.add_argument('-noniid_assignment', default=0, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
+parser.add_argument('-noniid_assignment', default=1, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
 parser.add_argument('-run', default=0, help=" set the run id", type=int)
 parser.add_argument('-random_data_distribution', default=0, help=" set 0 for fixed distribution, 1 for time-varying", type=int)
 parser.add_argument('-batches', default=5, help="sets the number of batches per learning round", type=int)
@@ -185,7 +185,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
         label_history = []
         local_model_parameters = np.load(outfile_models, allow_pickle=True)
         model.set_weights(local_model_parameters.tolist())
-
+        model_valid = create_q_model()
         dump_vars = np.load(outfile, allow_pickle=True)
         frame_count = dump_vars['frame_count']
         epoch_loss_history = dump_vars['epoch_loss_history'].tolist()
@@ -194,6 +194,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
     else:
         train_start = True
         model = create_q_model()
+        model_valid = create_q_model()
         data_history = []
         label_history = []
         frame_count = 0
@@ -315,7 +316,26 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
         # validation tool for device 'device_index'
         if epoch_count > validation_start and frame_count % number_of_batches == 0:
+
             avg_cost = 0.
+            # One training step using full training dataset (as new task)
+            obs, labels = data_handle.getRandomTestData(batch_size)
+            data_valid = preprocess_observation(np.squeeze(obs), batch_size)
+            data_sample = np.array(data_valid)
+            label_sample = np.array(labels)
+            masks = tf.one_hot(label_sample, n_outputs)
+            model_valid.set_weights(model.get_weights())
+            with tf.GradientTape() as tape:
+                # Train the model on data samples
+                classes = model_valid(data_sample)
+                # Apply the masks
+                class_v = tf.reduce_sum(tf.multiply(classes, masks), axis=1)
+                # Calculate loss
+                loss = loss_function(label_sample, class_v)
+            # Backpropagation
+            grads = tape.gradient(loss, model_valid.trainable_variables)
+            optimizer.apply_gradients(zip(grads, model_valid.trainable_variables))
+
             for i in range(number_of_batches_for_validation):
                 obs_valid, labels_valid = data_handle.getTestData(batch_size, i)
                 # obs_valid, labels_valid = data_handle.getRandomTestData(batch_size)
