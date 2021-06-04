@@ -15,7 +15,7 @@ class MnistData:
         self.start_samples = start_samples
         self.validation_train = 60000
         self.validation_test = 10000
-        x_train = (x_train.astype('float32').clip(0)) / 255
+
         if random_data_distribution == 1:
             s_list = random.sample(range(self.validation_train), self.samples)
         else:
@@ -23,10 +23,12 @@ class MnistData:
             s_list = np.arange(self.start_samples, self.samples + self.start_samples)
 
         self.x_train = np.expand_dims(x_train[s_list, :, :], 3) # DATA PARTITION
+        self.x_train = (self.x_train.astype('float32').clip(0)) / 255
         self.y_train = np.squeeze(y_train[s_list])
-        x_test = (x_test.astype('float32').clip(0)) / 255
+
         self.y_test = np.squeeze(y_test[:self.validation_test])
         self.x_test = np.expand_dims(x_test[:self.validation_test, :, :], 3)
+        self.x_test = (self.x_test.astype('float32').clip(0)) / 255
         del x_test, x_train, y_test, y_train
 
     def getTrainingData(self, batch_size):
