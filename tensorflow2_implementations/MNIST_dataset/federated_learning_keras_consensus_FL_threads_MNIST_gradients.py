@@ -270,7 +270,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
     # set an arbitrary optimizer, here Adam is used
     optimizer = keras.optimizers.Adam(learning_rate=args.mu, clipnorm=1.0)
     #optimizer2 = keras.optimizers.SGD(learning_rate=args.mu2)
-    optimizer2 = keras.optimizers.Adam(learning_rate=args.mu2)
+    optimizer2 = keras.optimizers.Adam(learning_rate=args.mu2, clipnorm=1.0)
     # create a data object (here radar data)
     # start = time.time()
     if args.noniid_assignment == 1:
