@@ -49,7 +49,7 @@ args = parser.parse_args()
 
 devices = args.K  # NUMBER OF DEVICES
 active_devices_per_round = args.Ka
-max_epochs = 200
+max_epochs = 400
 condition = args.modelselection
 
 
@@ -524,8 +524,8 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
             if federated:
                 sio.savemat(
-                    "results/matlab/CFA_device_{}_samples_{}_devices_{}_active_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
-                        device_index, samples, devices, args.Ka_consensus, args.N, number_of_batches, batch_size, args.noniid_assignment, args.run, args.random_data_distribution), dict_1)
+                    "results/matlab/CFA_device_{}_samples_{}_devices_{}_active_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}_distribution{}_gradients{}.mat".format(
+                        device_index, samples, devices, args.Ka_consensus, args.N, number_of_batches, batch_size, args.noniid_assignment, args.run, args.random_data_distribution, args.gradients), dict_1)
                 sio.savemat(
                     "CFA_device_{}_samples_{}_devices_{}_neighbors_{}_batches_{}_size{}.mat".format(
                         device_index, samples, devices, args.N, number_of_batches, batch_size), dict_1)
@@ -572,9 +572,9 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
             if federated:
                 sio.savemat(
-                    "results/matlab/CFA_device_{}_samples_{}_devices_{}_active_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
+                    "results/matlab/CFA_device_{}_samples_{}_devices_{}_active_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}_distribution{}_gradients{}.mat".format(
                         device_index, samples, devices, args.Ka_consensus, args.N, number_of_batches, batch_size,
-                        args.noniid_assignment, args.run, args.random_data_distribution), dict_1)
+                        args.noniid_assignment, args.run, args.random_data_distribution, args.gradients), dict_1)
                 sio.savemat(
                     "CFA_device_{}_samples_{}_devices_{}_neighbors_{}_batches_{}_size{}.mat".format(
                         device_index, samples, devices, args.N, number_of_batches, batch_size), dict_1)
