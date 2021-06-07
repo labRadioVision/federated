@@ -27,7 +27,7 @@ class CFA_process:
             mat_content = self.getMobileNetwork_connectivity(self.ii_saved_local, self.neighbors, self.devices, 0)
             self.neighbor_vec = np.asarray(mat_content[0], dtype=int)
 
-    def get_neighbor_weights(self, neighbor, epoch_count, eps_t_control, outfile, outfile_models, epoch=0, max_lag=1):
+    def get_neighbor_weights(self, epoch_count, outfile, outfile_models, epoch=0, max_lag=1):
         warnings.filterwarnings("ignore")
         success = False
         # max_lag = 30 # default 30
@@ -150,7 +150,7 @@ class CFA_process:
         for q in range(neighbors):
             outfile_models = 'results/dump_train_model{}.npy'.format(neighbor[q])
             outfile = 'results/dump_train_variables{}.npz'.format(neighbor[q])
-            weight_n, success = self.get_neighbor_weights(neighbor[q], epoch_count, eps_t_control, outfile, outfile_models, epoch=0, max_lag=1)
+            weight_n, success = self.get_neighbor_weights(epoch_count, outfile, outfile_models, epoch=0, max_lag=1)
             if success:
                 neighbor_weights.append(weight_n)
             if self.training_end and len(neighbor_weights) > 0:
@@ -174,12 +174,9 @@ class CFA_process:
 
         return self.local_weights.tolist()
 
-    def federated_grads_computing(self, neighbor, neighbors, epoch_count, eps_t_control, epoch=0, max_lag=30):
+    def federated_grads_computing(self, neighbor, neighbors, epoch_count, eps_t_control, epoch=0, max_lag=1):
         warnings.filterwarnings("ignore")
         # max_lag = 30 # default 30
-        stop_federation = False
-        old_grads = self.local_gradients
-
         neighbor_grads = []
         # seqc = random.sample(range(self.devices), self.active)
 
@@ -187,7 +184,7 @@ class CFA_process:
             # neighbor model and stats (train variables)
             outfile = 'results/dump_train_variables{}.npz'.format(neighbor[q])
             outfile_models_grad = 'results/dump_train_grad{}.npy'.format(neighbor[q])
-            weight_n, success = self.get_neighbor_weights(neighbor[q], epoch_count, eps_t_control, outfile,
+            weight_n, success = self.get_neighbor_weights(epoch_count, outfile,
                                                           outfile_models_grad, epoch=0, max_lag=1)
             if success:
                 neighbor_grads.append(weight_n)
