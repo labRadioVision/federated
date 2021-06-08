@@ -31,7 +31,7 @@ parser.add_argument('-consensus', default=1, help="set 1 to enable consensus, se
 parser.add_argument('-mu', default=0.001, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-mu2', default=0.01, help="sets the gradient update rate", type=float)
 parser.add_argument('-eps', default=0.5, help="sets the mixing parameters for model averaging (CFA)", type=float)
-parser.add_argument('-eps_grads', default=0.9, help="sets the mixing parameters for gradient combining (CFA-GE)", type=float)
+parser.add_argument('-eps_grads', default=0.5, help="sets the mixing parameters for gradient combining (CFA-GE)", type=float)
 parser.add_argument('-target', default=0.1, help="sets the target loss to stop federation", type=float)
 parser.add_argument('-K', default=30, help="sets the number of network devices", type=int)
 parser.add_argument('-Ka', default=20, help="sets the number of active devices per round in FA (<= K)", type=int)
