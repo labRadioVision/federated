@@ -58,7 +58,7 @@ class CFA_process:
         pause(round(np.random.random(), 2))
         # check file and updated neighbor frame count, max lag
         if not stop_federation:
-                while not os.path.isfile(outfile_models) or neighbor_epoch_count < epoch_count - max_lag:
+                while not os.path.isfile(outfile_models) or neighbor_epoch_count < epoch_count - max_lag and not self.training_end:
                     # implementing consensus
                     # print("neighbor frame {} local frame {}, device {} neighbor {}".format(neighbor_frame_count, frame_count, self.ii_saved_local, neighbor[q]))
                     pause(1)
@@ -131,7 +131,42 @@ class CFA_process:
             sets_neighbors_final = np.delete(sets_neighbors, index_ii)
 
         if saved_neighbors < 2:
-            neighbors_final = np.delete(sets_neighbors_final, 1)
+            if ii_saved_local > 0:
+                neighbors_final = ii_saved_local - 1
+            else:
+                neighbors_final = devices - 1
+        else:
+            neighbors_final = sets_neighbors_final
+
+        return neighbors_final
+
+    def get_tx_connectivity(self, ii_saved_local, neighbors, devices):
+        saved_neighbors = neighbors
+        if neighbors < 2:
+            neighbors = 2  # set minimum to 2 neighbors
+        if (ii_saved_local == 0):
+            sets_neighbors_final = np.arange(ii_saved_local + 1, ii_saved_local + neighbors + 1)
+        elif (ii_saved_local == devices - 1):
+            sets_neighbors_final = np.arange(ii_saved_local - neighbors, ii_saved_local)
+        elif (ii_saved_local >= math.ceil(neighbors / 2)) and (
+                ii_saved_local <= devices - math.ceil(neighbors / 2) - 1):
+            sets_neighbors = np.arange(ii_saved_local - math.floor(neighbors / 2),
+                                       ii_saved_local + math.floor(neighbors / 2) + 1)
+            index_ii = np.where(sets_neighbors == ii_saved_local)
+            sets_neighbors_final = np.delete(sets_neighbors, index_ii)
+        else:
+            if (ii_saved_local - math.ceil(neighbors / 2) < 0):
+                sets_neighbors = np.arange(0, neighbors + 1)
+            else:
+                sets_neighbors = np.arange(devices - neighbors - 1, devices)
+            index_ii = np.where(sets_neighbors == ii_saved_local)
+            sets_neighbors_final = np.delete(sets_neighbors, index_ii)
+
+        if saved_neighbors < 2:
+            if ii_saved_local == self.devices - 1:
+                neighbors_final = 0
+            else:
+                neighbors_final = ii_saved_local + 1
         else:
             neighbors_final = sets_neighbors_final
 
@@ -146,16 +181,23 @@ class CFA_process:
 
         neighbor_weights = []
         # seqc = random.sample(range(self.devices), self.active)
-
-        for q in range(neighbors):
-            outfile_models = 'results/dump_train_model{}.npy'.format(neighbor[q])
-            outfile = 'results/dump_train_variables{}.npz'.format(neighbor[q])
+        if neighbors > 1:
+            for q in range(neighbors):
+                outfile_models = 'results/dump_train_model{}.npy'.format(neighbor[q])
+                outfile = 'results/dump_train_variables{}.npz'.format(neighbor[q])
+                weight_n, success = self.get_neighbor_weights(epoch_count, outfile, outfile_models, epoch=0, max_lag=1)
+                if success:
+                    neighbor_weights.append(weight_n)
+                if self.training_end and len(neighbor_weights) > 0:
+                    # one of the neighbors solved the optimization, apply transfer learning
+                    break
+        else:
+            outfile_models = 'results/dump_train_model{}.npy'.format(neighbor)
+            outfile = 'results/dump_train_variables{}.npz'.format(neighbor)
             weight_n, success = self.get_neighbor_weights(epoch_count, outfile, outfile_models, epoch=0, max_lag=1)
             if success:
                 neighbor_weights.append(weight_n)
-            if self.training_end and len(neighbor_weights) > 0:
-                # one of the neighbors solved the optimization, apply transfer learning
-                break
+
 
         if len(neighbor_weights) > 0:
             eps_t_control = 1 / (len(neighbor_weights) + 1) # overwrite
@@ -180,17 +222,27 @@ class CFA_process:
         neighbor_grads = []
         # seqc = random.sample(range(self.devices), self.active)
 
-        for q in range(neighbors):
+        if neighbors > 1:
+            for q in range(neighbors):
+                # neighbor model and stats (train variables)
+                outfile = 'results/dump_train_variables{}.npz'.format(neighbor[q])
+                outfile_models_grad = 'results/dump_train_grad{}.npy'.format(neighbor[q])
+                weight_n, success = self.get_neighbor_weights(epoch_count, outfile,
+                                                          outfile_models_grad, epoch=0, max_lag=1)
+                if success:
+                    neighbor_grads.append(weight_n)
+                if self.training_end and len(neighbor_grads) > 0:
+                    # one of the neighbors solved the optimization, apply transfer learning
+                    break
+        else:
             # neighbor model and stats (train variables)
-            outfile = 'results/dump_train_variables{}.npz'.format(neighbor[q])
-            outfile_models_grad = 'results/dump_train_grad{}.npy'.format(neighbor[q])
+            outfile = 'results/dump_train_variables{}.npz'.format(neighbor)
+            outfile_models_grad = 'results/dump_train_grad{}.npy'.format(neighbor)
             weight_n, success = self.get_neighbor_weights(epoch_count, outfile,
                                                           outfile_models_grad, epoch=0, max_lag=1)
             if success:
                 neighbor_grads.append(weight_n)
-            if self.training_end and len(neighbor_grads) > 0:
-                # one of the neighbors solved the optimization, apply transfer learning
-                break
+
 
         if len(neighbor_grads) > 0:
             eps_t_control = 1 / (len(neighbor_grads) + 1)  # overwrite

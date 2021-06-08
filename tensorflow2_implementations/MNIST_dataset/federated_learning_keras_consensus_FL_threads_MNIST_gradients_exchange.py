@@ -149,38 +149,6 @@ def get_noniid_data(total_training_size, devices, batch_size):
     return samples
 ####
 
-def get_connectivity(ii_saved_local, neighbors, devices):
-        saved_neighbors = neighbors
-        if neighbors < 2:
-            neighbors = 2 # set minimum to 2 neighbors
-        if (ii_saved_local == 0):
-            sets_neighbors_final = np.arange(ii_saved_local + 1, ii_saved_local + neighbors + 1)
-        elif (ii_saved_local == devices - 1):
-            sets_neighbors_final = np.arange(ii_saved_local - neighbors, ii_saved_local)
-        elif (ii_saved_local >= math.ceil(neighbors / 2)) and (
-                ii_saved_local <= devices - math.ceil(neighbors / 2) - 1):
-            sets_neighbors = np.arange(ii_saved_local - math.floor(neighbors / 2),
-                                       ii_saved_local + math.floor(neighbors / 2) + 1)
-            index_ii = np.where(sets_neighbors == ii_saved_local)
-            sets_neighbors_final = np.delete(sets_neighbors, index_ii)
-        else:
-            if (ii_saved_local - math.ceil(neighbors / 2) < 0):
-                sets_neighbors = np.arange(0, neighbors + 1)
-            else:
-                sets_neighbors = np.arange(devices - neighbors - 1, devices)
-            index_ii = np.where(sets_neighbors == ii_saved_local)
-            sets_neighbors_final = np.delete(sets_neighbors, index_ii)
-
-        if saved_neighbors < 2:
-            if ii_saved_local > 0:
-                neighbors_final = ii_saved_local - 1
-            else:
-                neighbors_final = devices - 1
-        else:
-            neighbors_final = sets_neighbors_final
-
-        return neighbors_final
-
 def preprocess_observation(obs, batch_size):
     img = obs# crop and downsize
     img = (img).astype(np.float)
@@ -300,7 +268,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
     training_end = False
 
-    a = model.get_weights()
+    #a = model.get_weights()
     # set an arbitrary optimizer, here Adam is used
     optimizer = keras.optimizers.Adam(learning_rate=args.mu, clipnorm=1.0)
     #optimizer2 = keras.optimizers.SGD(learning_rate=args.mu2)
@@ -377,17 +345,30 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             data_history = []
             label_history = []
 
-            # obtain a new test observation from local database
+            model_weights = np.asarray(model.get_weights())
+            model.save(checkpointpath1, include_optimizer=True, save_format='h5')
+            np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
+                     training_end=training_end, epoch_count=epoch_count, loss=running_loss)
+            np.save(outfile_models, model_weights)
+            cfa_consensus.update_local_model(model_weights)
+            grads_v = []
+            for d in range(len(grads)):
+                grads_v.append(grads[d].numpy())
+            grads_v = np.asarray(grads_v)
+            cfa_consensus.update_local_gradient(grads_v)
+
+            # compute gradients for selected neighbors in get_tx_connectvity, obtain a new test observation from local database
             obs_t, labels_t = data_handle.getTrainingData(batch_size)
             data_batch_t = preprocess_observation(obs_t, batch_size)
             masks_t = tf.one_hot(labels_t, n_outputs)
-            if device_index == devices - 1:
-                gradient_neighbor = 0
-            else:
-                gradient_neighbor = device_index + 1
+            gradient_neighbor = cfa_consensus.get_tx_connectivity(device_index, args.N, devices)
             outfile_n = 'results/dump_train_variables{}.npz'.format(gradient_neighbor)
             outfile_models_n = 'results/dump_train_model{}.npy'.format(gradient_neighbor)
-            model_transmitted.set_weights(cfa_consensus.get_neighbor_weights(epoch_count, outfile_n, outfile_models_n, epoch=0, max_lag=1).tolist())
+            neighbor_model_for_gradient, success = cfa_consensus.get_neighbor_weights(epoch_count, outfile_n, outfile_models_n, epoch=0, max_lag=1)
+            if success:
+                model_transmitted.set_weights(neighbor_model_for_gradient.tolist())
+            else:
+                print("failed retrieving the model for gradient computation")
 
             with tf.GradientTape() as tape2:
                 # Train the model on data samples
@@ -397,58 +378,44 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                 # Calculate loss
                 loss = loss_function(labels_t, class_v)
 
-            # getting the last gradients
+            # getting and save neighbor gradients
             grads_t = tape2.gradient(loss, model_transmitted.trainable_variables)
             grads_v = []
             for d in range(len(grads_t)):
                 grads_v.append(grads_t[d].numpy())
             grads_v = np.asarray(grads_v)
-
-
-            #if not parameter_server and not federated:
-            #    print('Average batch training time {:.2f}'.format(time_count))
-
-
-            model_weights = np.asarray(model.get_weights())
-            model.save(checkpointpath1, include_optimizer=True, save_format='h5')
-            np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
-                     training_end=training_end, epoch_count=epoch_count, loss=running_loss)
-            np.save(outfile_models, model_weights)
             np.save(outfile_models_grad, grads_v)
 
-
-            #  Consensus round
-            # update local model
-            cfa_consensus.update_local_model(model_weights)
-            cfa_consensus.update_local_gradient(grads_v)
-            # neighbor = cfa_consensus.get_connectivity(device_index, args.N, devices) # fixed neighbor
             np.random.seed(1)
             tf.random.set_seed(1)  # common initialization
             if not train_start:
                 if federated and not training_signal:
                     eps_c = 1 / (args.N + 1)
                     # apply consensus for model parameter
-                    # neighbor = np.random.choice(np.arange(devices), args.N, p=Probabilities, replace=False) # choose neighbor
-                    if args.gradients == 0 or running_loss < 0.5:
-                        neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N, replace=False) # choose neighbor
-                        while neighbor == device_index:
-                            neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N,
-                                                    replace=False)  # choose neighbor
+                    neighbor = cfa_consensus.get_connectivity(device_index, args.N, devices)  # fixed neighbor
+                    #if args.gradients == 0 or running_loss < 0.5:
+                    if args.gradients == 0:
+                        # random selection of neighor
+                        # neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N, replace=False) # choose neighbor
+                        # while neighbor == device_index:
+                        #     neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N,
+                        #                             replace=False)  # choose neighbor
                         print("Consensus from neighbor {} for device {}, local loss {:.2f}".format(neighbor, device_index,
                                                                                                loss.numpy()))
                         model.set_weights(cfa_consensus.federated_weights_computing(neighbor, args.N, epoch_count, eps_c, max_lag))
                         if cfa_consensus.getTrainingStatusFromNeightbor():
                             training_signal = True # stop local learning, just do validation
-                    else: # compute gradients as usual
-                        #neighbor = cfa_consensus.get_connectivity(device_index, args.N, devices)
-                        print("Consensus from neighbor {} for device {}, local loss {:.2f}".format(neighbor_vector[device_index], device_index,
+                    else:
+                        # compute gradients as usual
+
+                        print("Consensus from neighbor {} for device {}, local loss {:.2f}".format(neighbor, device_index,
                                                                                                  loss.numpy()))
                         print("Applying gradient updates...")
-                        model.set_weights(cfa_consensus.federated_weights_computing(neighbor_vector[device_index], args.N, epoch_count, eps_c, max_lag))
+                        model.set_weights(cfa_consensus.federated_weights_computing(neighbor, args.N, epoch_count, eps_c, max_lag))
                         if cfa_consensus.getTrainingStatusFromNeightbor():
                             training_signal = True # stop local learning, just do validation
                         else:
-                            grads = cfa_consensus.federated_grads_computing(neighbor_vector[device_index], args.N, epoch_count, eps_c, max_lag)
+                            grads = cfa_consensus.federated_grads_computing(neighbor, args.N, epoch_count, eps_c, max_lag)
                             optimizer2.apply_gradients(zip(grads, model.trainable_variables))
             else:
                 print("Warm up")
@@ -657,11 +624,9 @@ if __name__ == "__main__":
     ######################################################################################
     np.random.seed(1)
     tf.random.set_seed(1)  # common initialization
-    neighbor_vector = []
     if federated or parameter_server:
         for ii in range(devices):
             # position start
-            neighbor_vector.append(get_connectivity(ii, args.N, devices))
             if ii == 0:
                 start_index = 0
             else:
