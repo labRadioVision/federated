@@ -30,7 +30,8 @@ parser.add_argument('-PS', default=0, help="set 1 to enable PS server and FedAvg
 parser.add_argument('-consensus', default=1, help="set 1 to enable consensus, set 0 to disable", type=float)
 parser.add_argument('-mu', default=0.001, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-mu2', default=0.01, help="sets the gradient update rate", type=float)
-parser.add_argument('-eps', default=1, help="sets the mixing parameters for model averaging (CFA)", type=float)
+parser.add_argument('-eps', default=0.5, help="sets the mixing parameters for model averaging (CFA)", type=float)
+parser.add_argument('-eps_grads', default=0.9, help="sets the mixing parameters for gradient combining (CFA-GE)", type=float)
 parser.add_argument('-target', default=0.1, help="sets the target loss to stop federation", type=float)
 parser.add_argument('-K', default=30, help="sets the number of network devices", type=int)
 parser.add_argument('-Ka', default=20, help="sets the number of active devices per round in FA (<= K)", type=int)
@@ -390,7 +391,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             tf.random.set_seed(1)  # common initialization
             if not train_start:
                 if federated and not training_signal:
-                    eps_c = 1 / (args.N + 1)
+                    eps_c = args.eps
                     # apply consensus for model parameter
                     neighbor = cfa_consensus.get_connectivity(device_index, args.N, devices)  # fixed neighbor
                     #if args.gradients == 0 or running_loss < 0.5:
@@ -415,7 +416,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                         if cfa_consensus.getTrainingStatusFromNeightbor():
                             training_signal = True # stop local learning, just do validation
                         else:
-                            grads = cfa_consensus.federated_grads_computing(neighbor, args.N, epoch_count, eps_c, max_lag)
+                            grads = cfa_consensus.federated_grads_computing(neighbor, args.N, epoch_count, args.eps_grads, max_lag)
                             optimizer2.apply_gradients(zip(grads, model.trainable_variables))
             else:
                 print("Warm up")

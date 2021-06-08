@@ -216,7 +216,7 @@ class CFA_process:
 
         return self.local_weights.tolist()
 
-    def federated_grads_computing(self, neighbor, neighbors, epoch_count, eps_t_control, epoch=0, max_lag=1):
+    def federated_grads_computing(self, neighbor, neighbors, epoch_count, eps_t_control, max_lag=1):
         warnings.filterwarnings("ignore")
         # max_lag = 30 # default 30
         neighbor_grads = []
@@ -245,7 +245,7 @@ class CFA_process:
 
 
         if len(neighbor_grads) > 0:
-            eps_t_control = 1 / (len(neighbor_grads) + 1)  # overwrite
+            # eps_t_control = 1 / (len(neighbor_grads) + 1)  # overwrite
             for q in range(len(neighbor_grads)):
                 # apply model averaging
                 for k in range(self.layers):
