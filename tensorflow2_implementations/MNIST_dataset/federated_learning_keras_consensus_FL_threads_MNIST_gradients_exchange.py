@@ -412,8 +412,11 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                         print("Consensus from neighbor {} for device {}, local loss {:.2f}".format(neighbor, device_index,
                                                                                                  loss.numpy()))
                         print("Applying gradient updates...")
-                        model.set_weights(cfa_consensus.federated_weights_computing(neighbor, args.N, epoch_count, eps_c, max_lag))
+                        # model.set_weights(cfa_consensus.federated_weights_computing(neighbor, args.N, epoch_count, eps_c, max_lag))
+                        model_averaging = cfa_consensus.federated_weights_computing(neighbor, args.N, epoch_count, eps_c, max_lag)
+                        model.set_weights(model_averaging)
                         if cfa_consensus.getTrainingStatusFromNeightbor():
+                            # model.set_weights(model_averaging)
                             training_signal = True # stop local learning, just do validation
                         else:
                             grads = cfa_consensus.federated_grads_computing(neighbor, args.N, epoch_count, args.eps_grads, max_lag)
