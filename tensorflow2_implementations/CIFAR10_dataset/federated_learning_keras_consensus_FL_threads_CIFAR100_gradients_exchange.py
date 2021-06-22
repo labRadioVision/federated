@@ -1,5 +1,5 @@
-from DataSets import MnistData
-from DataSets_task import MnistData_task
+from DataSets import CIFARData
+from DataSets_task import CIFARData_task
 from consensus.consensus_v4 import CFA_process
 from consensus.parameter_server_v2 import Parameter_Server
 # use only for consensus , PS only for energy efficiency
@@ -28,7 +28,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, 0 to start from the beginning", type=float)
 parser.add_argument('-PS', default=0, help="set 1 to enable PS server and FedAvg, set 0 to disable PS", type=float)
 parser.add_argument('-consensus', default=1, help="set 1 to enable consensus, set 0 to disable", type=float)
-parser.add_argument('-mu', default=0.001, help="sets the learning rate for all setups", type=float)
+parser.add_argument('-mu', default=0.01, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-mu2', default=0.01, help="sets the gradient update rate", type=float)
 parser.add_argument('-eps', default=0.5, help="sets the mixing parameters for model averaging (CFA)", type=float)
 parser.add_argument('-eps_grads', default=0.5, help="sets the mixing parameters for gradient combining (CFA-GE)", type=float)
@@ -50,9 +50,14 @@ args = parser.parse_args()
 
 devices = args.K  # NUMBER OF DEVICES
 active_devices_per_round = args.Ka
-max_epochs = 400
+max_epochs = 1000
+validation_train = 50000  # VALIDATION and training DATASET size
+validation_test = 10000
 condition = args.modelselection
-
+n_outputs = 100
+optimizer = keras.optimizers.Adam(learning_rate=args.mu, clipnorm=1.0)
+# optimizer = keras.optimizers.SGD(learning_rate=args.mu, momentum=0.9)
+condition = args.modelselection
 
 if args.consensus == 1:
     federated = True
@@ -99,8 +104,6 @@ seed = 42
 batch_size = args.batch_size
 number_of_batches = args.batches
 training_set_per_device = args.samp # NUMBER OF TRAINING SAMPLES PER DEVICE
-validation_train = 60000  # VALIDATION and training DATASET size
-validation_test = 10000
 
 if (training_set_per_device > validation_train/args.K):
     training_set_per_device = math.floor(validation_train/args.K)
@@ -122,8 +125,6 @@ print("Number of batches for learning {}".format(number_of_batches))
 max_lag = 1 # consensus max delay 2= 2 epochs max
 refresh_server = 1 # refresh server updates (in sec)
 
-n_outputs = 10  # 6 classes
-
 validation_start = 1 # start validation in epochs
 
 # Using huber loss for stability
@@ -134,52 +135,85 @@ loss_function = keras.losses.Huber()
 # sio.savemat("results/matlab/CFA_scheduling_devices_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}.mat".format(devices, args.N, number_of_batches, batch_size, args.noniid_assignment, args.run), dict_0)
 
 
-def get_noniid_data(total_training_size, devices, batch_size):
-    samples = np.random.random_integers(batch_size, total_training_size - batch_size * (devices - 1),
-                                        devices)  # create random numbers
-    samples = samples / np.sum(samples, axis=0) * total_training_size  # force them to sum to totals
-    # Ignore the following if you don't need integers
-    samples = np.round(samples)  # transform them into integers
-    remainings = total_training_size - np.sum(samples, axis=0)  # check if there are corrections to be done
-    step = 1 if remainings > 0 else -1
-    while remainings != 0:
-        i = np.random.randint(devices)
-        if samples[i] + step >= 0:
-            samples[i] += step
-            remainings -= step
-    return samples
-####
+# def get_noniid_data(total_training_size, devices, batch_size):
+#     samples = np.random.random_integers(batch_size, total_training_size - batch_size * (devices - 1),
+#                                         devices)  # create random numbers
+#     samples = samples / np.sum(samples, axis=0) * total_training_size  # force them to sum to totals
+#     # Ignore the following if you don't need integers
+#     samples = np.round(samples)  # transform them into integers
+#     remainings = total_training_size - np.sum(samples, axis=0)  # check if there are corrections to be done
+#     step = 1 if remainings > 0 else -1
+#     while remainings != 0:
+#         i = np.random.randint(devices)
+#         if samples[i] + step >= 0:
+#             samples[i] += step
+#             remainings -= step
+#     return samples
+# ####
 
 def preprocess_observation(obs, batch_size):
     img = obs# crop and downsize
     img = (img).astype(np.float)
-    return img.reshape(batch_size, 28, 28, 1)
+    return img.reshape(batch_size, 32, 32, 3)
 
 def create_q_model():
     # Network defined by the Deepmind paper
-    inputs = layers.Input(shape=(28, 28, 1,))
+    inputs = layers.Input(shape=(32, 32, 3,))
 
     if condition == 0:
-        # lenet - 1
-     layer1 = layers.Conv2D(4, kernel_size=(5, 5), activation="relu")(inputs)
-     layer2 = layers.AveragePooling2D(pool_size=(2, 2))(layer1)
-     layer3 = layers.Conv2D(8, kernel_size=(5, 5), activation="relu")(layer2)
-     layer4 = layers.AveragePooling2D(pool_size=(2, 2))(layer3)
-     layer5 = layers.Flatten()(layer4)
+        # VGG 1 BLOCK
+        layer1 = layers.Conv2D(32, kernel_size=(3, 3), activation="relu", kernel_initializer='he_uniform',
+                               padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.01))(inputs)
+        layer2 = layers.Conv2D(32, kernel_size=(3, 3), activation="relu", kernel_initializer='he_uniform',
+                               padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.01))(layer1)
+        layer3 = layers.MaxPooling2D(pool_size=(2, 2))(layer2)
+
+        layer4 = layers.Flatten()(layer3)
+        layer5 = layers.Dense(128, activation="relu", kernel_initializer='he_uniform')(layer4)
+        classification = layers.Dense(n_outputs, activation="linear")(layer5)
 
     elif condition == 1:
-        layer1 = layers.Conv2D(32, kernel_size=(3, 3), activation="relu")(inputs)
-        layer2 = layers.MaxPooling2D(pool_size=(2, 2))(layer1)
-        layer3 = layers.Conv2D(64, kernel_size=(3, 3), activation="relu")(layer2)
-        layer4 = layers.MaxPooling2D(pool_size=(2, 2))(layer3)
-        layer5 = layers.Flatten()(layer4)
+        # VGG 2 BLOCK
+        layer1 = layers.Conv2D(32, kernel_size=(3, 3), activation="relu", kernel_initializer='he_uniform', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.01))(
+            inputs)
+        layer2 = layers.Conv2D(32, kernel_size=(3, 3), activation="relu", kernel_initializer='he_uniform', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.01))(
+        layer1)
+        layer3 = layers.MaxPooling2D(pool_size=(2, 2))(layer2)
+        layer4 = layers.Conv2D(64, kernel_size=(3, 3), activation="relu", kernel_initializer='he_uniform', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.01))(
+        layer3)
+        layer5 = layers.Conv2D(64, kernel_size=(3, 3), activation="relu", kernel_initializer='he_uniform', padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.01))(
+        layer4)
+        layer6 = layers.MaxPooling2D(pool_size=(2, 2))(layer5)
+        layer7 = layers.Flatten()(layer6)
+        layer8 = layers.Dense(128, activation="relu", kernel_initializer='he_uniform')(layer7)
+        classification = layers.Dense(n_outputs, activation="linear")(layer8)
 
     else:
-        layer1 = layers.Conv2D(14, kernel_size=(3, 3), activation="relu")(inputs)
-        layer2 = layers.MaxPooling2D(pool_size=(2, 2))(layer1)
-        layer3 = layers.Conv2D(64, kernel_size=(3, 3), activation="relu")(layer2)
-        layer4 = layers.MaxPooling2D(pool_size=(2, 2))(layer3)
-        layer5 = layers.Flatten()(layer4)
+        # VGG 3 BLOCK
+        layer1 = layers.Conv2D(32, kernel_size=(3, 3), activation="relu", kernel_initializer='he_uniform',
+                               padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.01))(
+            inputs)
+        layer2 = layers.Conv2D(32, kernel_size=(3, 3), activation="relu", kernel_initializer='he_uniform',
+                               padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.01))(
+            layer1)
+        layer3 = layers.MaxPooling2D(pool_size=(2, 2))(layer2)
+        layer4 = layers.Conv2D(64, kernel_size=(3, 3), activation="relu", kernel_initializer='he_uniform',
+                               padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.01))(
+            layer3)
+        layer5 = layers.Conv2D(64, kernel_size=(3, 3), activation="relu", kernel_initializer='he_uniform',
+                               padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.01))(
+            layer4)
+        layer6 = layers.MaxPooling2D(pool_size=(2, 2))(layer5)
+        layer7 = layers.Conv2D(128, kernel_size=(3, 3), activation="relu", kernel_initializer='he_uniform',
+                               padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.01))(
+            layer6)
+        layer8 = layers.Conv2D(128, kernel_size=(3, 3), activation="relu", kernel_initializer='he_uniform',
+                               padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.01))(
+            layer7)
+        layer9 = layers.MaxPooling2D(pool_size=(2, 2))(layer8)
+        layer10 = layers.Flatten()(layer9)
+        layer11 = layers.Dense(128, activation="relu", kernel_initializer='he_uniform')(layer10)
+        classification = layers.Dense(n_outputs, activation="linear")(layer11)
 
     # Convolutions
     # layer1 = layers.Conv2D(32, 8, strides=4, activation="relu")(inputs)
@@ -189,7 +223,7 @@ def create_q_model():
     # layer4 = layers.Flatten()(layer3)
     #
     # layer5 = layers.Dense(512, activation="relu")(layer4)
-    classification = layers.Dense(n_outputs, activation="linear")(layer5)
+    # classification = layers.Dense(n_outputs, activation="linear")(layer5)
 
     return keras.Model(inputs=inputs, outputs=classification)
 
@@ -271,15 +305,15 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
     #a = model.get_weights()
     # set an arbitrary optimizer, here Adam is used
-    optimizer = keras.optimizers.Adam(learning_rate=args.mu, clipnorm=1.0)
+    #optimizer = keras.optimizers.Adam(learning_rate=args.mu, clipnorm=1.0)
     #optimizer2 = keras.optimizers.SGD(learning_rate=args.mu2)
     optimizer2 = keras.optimizers.Adam(learning_rate=args.mu2, clipnorm=1.0)
     # create a data object (here radar data)
     # start = time.time()
     if args.noniid_assignment == 1:
-        data_handle = MnistData_task(device_index, start_samples, samples, full_data_size, args.random_data_distribution)
+        data_handle = CIFARData_task(device_index, start_samples, samples, full_data_size, args.random_data_distribution)
     else:
-        data_handle = MnistData(device_index, start_samples, samples, full_data_size, args.random_data_distribution)
+        data_handle = CIFARData(device_index, start_samples, samples, full_data_size, args.random_data_distribution)
 
     # end = time.time()
     # time_count = (end - start)

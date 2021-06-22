@@ -78,7 +78,7 @@ if parameter_server and not federated:
         sr2 = k % sr
         inds = np.arange(sr2, args.Ka + sr2)
         scheduling_tx[inds, k] = 1
-        indexes_tx[:,k] = inds
+        indexes_tx[:, k] = inds
 elif not parameter_server and federated:
     indexes_tx = np.zeros((args.Ka_consensus, max_epochs*2), dtype=int)
     for k in range(max_epochs*2):
