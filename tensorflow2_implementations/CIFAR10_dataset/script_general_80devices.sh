@@ -15,27 +15,31 @@ unset __conda_setup
 # <<< conda initialize <<<
 conda activate reinforcement
 
-#python federated_learning_keras_PS_CIFAR100.py -PS 0 -consensus 0 -K 40 -run 0 -target 0.5
 #python federated_learning_keras_PS_CIFAR100.py -PS 0 -consensus 0 -K 60 -run 0 -target 0.5
-python federated_learning_keras_PS_CIFAR100.py -PS 0 -consensus 0 -K 80 -run 0 -target 0.5
-#python federated_learning_keras_PS_CIFAR100.py -PS 1 -consensus 0 -K 40 -Ka 20 -run 0 -target 0.5
-#python federated_learning_keras_PS_CIFAR100.py -PS 1 -consensus 0 -K 60 -Ka 30 -run 0 -target 0.5
-python federated_learning_keras_PS_CIFAR100.py -PS 1 -consensus 0 -K 80 -Ka 40 -run 0 -target 0.5
-#python federated_learning_keras_PS_CIFAR100.py -PS 1 -consensus 0 -K 40 -Ka 20 -run 1 -target 1
-#python federated_learning_keras_PS_CIFAR100.py -PS 1 -consensus 0 -K 60 -Ka 30 -run 1 -target 1
-python federated_learning_keras_PS_CIFAR100.py -PS 1 -consensus 0 -K 80 -Ka 40 -run 1 -target 1
-#python federated_learning_keras_consensus_FL_CIFAR100.py -PS 0 -consensus 1 -K 40 -N 1 -Ka_consensus 20 -run 0 -target 0.5
-#python federated_learning_keras_consensus_FL_CIFAR100.py -PS 0 -consensus 1 -K 60 -N 1 -Ka_consensus 30 -run 0 -target 0.5
-python federated_learning_keras_consensus_FL_CIFAR100.py -PS 0 -consensus 1 -K 80 -N 1 -Ka_consensus 40 -run 0 -target 0.5
-#python federated_learning_keras_consensus_FL_CIFAR100.py -PS 0 -consensus 1 -K 40 -N 1 -Ka_consensus 20 -run 1 -target 1
-#python federated_learning_keras_consensus_FL_CIFAR100.py -PS 0 -consensus 1 -K 60 -N 1 -Ka_consensus 30 -run 1 -target 1
-python federated_learning_keras_consensus_FL_CIFAR100.py -PS 0 -consensus 1 -K 80 -N 1 -Ka_consensus 40 -run 1 -target 1
-#python federated_learning_keras_low_power_PS_CIFAR100.py -PS 1 -consensus 0 -K 40 -Ka 20 -run 0 -target 0.5
-#python federated_learning_keras_low_power_PS_CIFAR100.py -PS 1 -consensus 0 -K 60 -Ka 30 -run 0 -target 0.5
-python federated_learning_keras_low_power_PS_CIFAR100.py -PS 1 -consensus 0 -K 80 -Ka 40 -run 0 -target 0.5
-python federated_learning_keras_low_power_PS_CIFAR100.py -PS 1 -consensus 0 -K 40 -Ka 20 -run 1 -target 1
-python federated_learning_keras_low_power_PS_CIFAR100.py -PS 1 -consensus 0 -K 60 -Ka 30 -run 1 -target 1
-python federated_learning_keras_low_power_PS_CIFAR100.py -PS 1 -consensus 0 -K 80 -Ka 40 -run 1 -target 1
+#python federated_learning_keras_PS_CIFAR100.py -PS 0 -consensus 0 -K 30 -run 0 -target 0.5
+#python federated_learning_keras_PS_CIFAR100.py -PS 0 -consensus 0 -K 80 -run 0 -target 0.5
+#python federated_learning_keras_PS_CIFAR100.py -PS 1 -consensus 0 -K 40 -Ka 30 -run 0 -target 0.5
+#python federated_learning_keras_PS_CIFAR100.py -PS 1 -consensus 0 -K 60 -Ka 40 -run 0 -target 0.5
+#python federated_learning_keras_PS_CIFAR100.py -PS 1 -consensus 0 -K 30 -Ka 20 -run 0 -target 0.5
+#python federated_learning_keras_PS_CIFAR100.py -PS 1 -consensus 0 -K 40 -Ka 30 -run 1 -target 1
+#python federated_learning_keras_PS_CIFAR100.py -PS 1 -consensus 0 -K 60 -Ka 40 -run 1 -target 1
+#python federated_learning_keras_PS_CIFAR100.py -PS 1 -consensus 0 -K 30 -Ka 20 -run 1 -target 1
+#python federated_learning_keras_consensus_FL_CIFAR100.py -PS 0 -consensus 1 -K 40 -N 1 -Ka_consensus 30 -run 0 -target 0.5
+#python federated_learning_keras_consensus_FL_CIFAR100.py -PS 0 -consensus 1 -K 60 -N 1 -Ka_consensus 40 -run 0 -target 0.5
+#python federated_learning_keras_consensus_FL_CIFAR100.py -PS 0 -consensus 1 -K 30 -N 1 -Ka_consensus 20 -run 0 -target 0.5
+#python federated_learning_keras_consensus_FL_CIFAR100.py -PS 0 -consensus 1 -K 40 -N 1 -Ka_consensus 30 -run 1 -target 1
+#python federated_learning_keras_consensus_FL_CIFAR100.py -PS 0 -consensus 1 -K 60 -N 1 -Ka_consensus 40 -run 1 -target 1
+#python federated_learning_keras_consensus_FL_threads_CIFAR100.py -PS 0 -consensus 1 -K 100 -N 1 -Ka_consensus 50 -run 0 -target 0.5 -noniid_assignment 1
+#python federated_learning_keras_consensus_FL_threads_CIFAR100.py -PS 0 -consensus 1 -K 60 -Ka_consensus 40 -run 0 -target 0.5 -noniid_assignment 1
+#python federated_learning_keras_consensus_FL_threads_CIFAR100.py -PS 0 -consensus 1 -K 30 -Ka_consensus 20 -run 0 -target 0.5 -noniid_assignment 1
+python federated_learning_keras_PS_threads_CIFAR100.py -PS 1 -consensus 0 -K 100 -Ka 50 -run 0 -target 0.5 -noniid_assignment 1
+python federated_learning_keras_PS_threads_CIFAR100.py -PS 1 -consensus 0 -K 60	-Ka 40 -run 0 -target 0.5 -noniid_assignment 1
+python federated_learning_keras_PS_threads_CIFAR100.py -PS 1 -consensus 0 -K 30	-Ka 20 -run 0 -target 0.5 -noniid_assignment 1
+#python federated_learning_keras_low_power_PS_threads_CIFAR100.py -PS 1 -consensus 0 -K 100 -Ka 60 -run 0 -target 0.5 -random_data_distribution 0
+#python federated_learning_keras_low_power_PS_threads_CIFAR100.py -PS 1 -consensus 0 -K 80 -Ka 60 -run 0 -target 0.5 -random_data_distribution 0
+#python federated_learning_keras_low_power_PS_threads_CIFAR100.py -PS 1 -consensus 0 -K 60 -Ka 60 -run 0 -target 0.5 -random_data_distribution 0
+#python federated_learning_keras_low_power_PS_CIFAR100.py -PS 1 -consensus 0 -K 60 -Ka 40 -run 1 -target 1
+#python federated_learning_keras_low_power_PS_CIFAR100.py -PS 1 -consensus 0 -K 30 -Ka 20 -run 1 -target 1
 #python federated_learning_keras_v2.py -PS 0 -consensus 1 -K 5 -N 1 -Ka_consensus 5 -batches 1 -random_data_distribution 0 -noniid_assignment 1 -run 0
 #python federated_learning_keras_v2.py -PS 0 -consensus 1 -K 10 -N 1 -Ka_consensus 5 -batches 1 -random_data_distribution 0 -noniid_assignment 1 -run 0
 #python federated_learning_keras_v2.py -PS 0 -consensus 1 -K 10 -N 1 -Ka_consensus 10 -batches 1 -random_data_distribution 0 -noniid_assignment 1 -run 0

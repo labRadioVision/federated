@@ -1,4 +1,5 @@
 from DataSets import CIFARData
+from DataSets_task import CIFARData_task
 from consensus.consensus_v3 import CFA_process
 from consensus.parameter_server_v2 import Parameter_Server
 # use only for consensus , PS only for energy efficiency
@@ -27,7 +28,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, 0 to start from the beginning", type=float)
 parser.add_argument('-PS', default=1, help="set 1 to enable PS server and FedAvg, set 0 to disable PS", type=float)
 parser.add_argument('-consensus', default=0, help="set 1 to enable consensus, set 0 to disable", type=float)
-parser.add_argument('-mu', default=0.001, help="sets the learning rate for all setups", type=float)
+parser.add_argument('-mu', default=0.01, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-eps', default=1, help="sets the mixing parameters for model averaging (CFA)", type=float)
 parser.add_argument('-target', default=0.5, help="sets the target loss to stop federation", type=float)
 parser.add_argument('-K', default=30, help="sets the number of network devices", type=int)
@@ -50,8 +51,8 @@ max_epochs = 1000
 validation_train = 50000  # VALIDATION and training DATASET size
 validation_test = 10000
 n_outputs = 100  # 6 classes
-# optimizer = keras.optimizers.Adam(learning_rate=args.mu, clipnorm=1.0)
-optimizer = keras.optimizers.SGD(learning_rate=args.mu, momentum=0.9)
+optimizer = keras.optimizers.Adam(learning_rate=args.mu, clipnorm=1.0)
+# optimizer = keras.optimizers.SGD(learning_rate=args.mu, momentum=0.9)
 condition = args.modelselection
 
 
@@ -292,7 +293,11 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
     # create a data object (here radar data)
     # start = time.time()
-    data_handle = CIFARData(device_index, start_samples, samples, full_data_size, args.random_data_distribution)
+    if args.noniid_assignment == 0:
+        data_handle = CIFARData(device_index, start_samples, samples, full_data_size, args.random_data_distribution)
+    else:
+        data_handle = CIFARData_task(device_index, start_samples, samples, full_data_size,
+                                     args.random_data_distribution)
     # end = time.time()
     # time_count = (end - start)
     # print(Training time"time_count)
@@ -647,11 +652,11 @@ if __name__ == "__main__":
     # samples = int(fraction_training/devices) # training samples per device
 
     ######################### Create a non-iid assignment  ##########################
-    if args.noniid_assignment == 1:
-        total_training_size = training_set_per_device * devices
-        samples = get_noniid_data(total_training_size, devices, batch_size)
-        while np.min(samples) < batch_size:
-            samples = get_noniid_data(total_training_size, devices, batch_size)
+    # if args.noniid_assignment == 1:
+    #     total_training_size = training_set_per_device * devices
+    #     samples = get_noniid_data(total_training_size, devices, batch_size)
+    #     while np.min(samples) < batch_size:
+    #         samples = get_noniid_data(total_training_size, devices, batch_size)
     #############################################################################
     print(samples)
 
