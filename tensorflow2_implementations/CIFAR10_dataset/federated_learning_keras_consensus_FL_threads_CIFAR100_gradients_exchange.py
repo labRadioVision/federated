@@ -1,6 +1,6 @@
 from DataSets import MnistData
 from DataSets_task import MnistData_task
-from consensus.consensus_ge import CFA_GE_process
+from consensus.consensus_v4 import CFA_process
 from consensus.parameter_server_v2 import Parameter_Server
 # use only for consensus , PS only for energy efficiency
 # from ReplayMemory import ReplayMemory
@@ -30,14 +30,15 @@ parser.add_argument('-PS', default=0, help="set 1 to enable PS server and FedAvg
 parser.add_argument('-consensus', default=1, help="set 1 to enable consensus, set 0 to disable", type=float)
 parser.add_argument('-mu', default=0.001, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-mu2', default=0.01, help="sets the gradient update rate", type=float)
-parser.add_argument('-eps', default=1, help="sets the mixing parameters for model averaging (CFA)", type=float)
+parser.add_argument('-eps', default=0.5, help="sets the mixing parameters for model averaging (CFA)", type=float)
+parser.add_argument('-eps_grads', default=0.5, help="sets the mixing parameters for gradient combining (CFA-GE)", type=float)
 parser.add_argument('-target', default=0.1, help="sets the target loss to stop federation", type=float)
 parser.add_argument('-K', default=30, help="sets the number of network devices", type=int)
 parser.add_argument('-Ka', default=20, help="sets the number of active devices per round in FA (<= K)", type=int)
 parser.add_argument('-N', default=1, help="sets the max. number of neighbors per device per round in CFA", type=int)
-parser.add_argument('-Ka_consensus', default=20, help="sets the number of active devices for consensus", type=int)
+parser.add_argument('-Ka_consensus', default=30, help="sets the number of active devices for consensus", type=int)
 parser.add_argument('-samp', default=500, help="sets the number samples per device", type=int)
-parser.add_argument('-noniid_assignment', default=0, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
+parser.add_argument('-noniid_assignment', default=1, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
 parser.add_argument('-gradients', default=1, help=" set 0 to disable gradient exchange, 1 to enable", type=int)
 parser.add_argument('-run', default=0, help=" set the run id", type=int)
 parser.add_argument('-random_data_distribution', default=0, help=" set 0 for fixed distribution, 1 for time-varying", type=int)
@@ -49,7 +50,7 @@ args = parser.parse_args()
 
 devices = args.K  # NUMBER OF DEVICES
 active_devices_per_round = args.Ka
-max_epochs = 200
+max_epochs = 400
 condition = args.modelselection
 
 
@@ -240,6 +241,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
         # backup the model and the model target
         model = models.load_model(checkpointpath1)
+        model_transmitted = create_q_model()
         data_history = []
         label_history = []
         local_model_parameters = np.load(outfile_models, allow_pickle=True)
@@ -253,6 +255,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
     else:
         train_start = True
         model = create_q_model()
+        model_transmitted = create_q_model()
         data_history = []
         label_history = []
         frame_count = 0
@@ -266,11 +269,11 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
     training_end = False
 
-    a = model.get_weights()
+    #a = model.get_weights()
     # set an arbitrary optimizer, here Adam is used
     optimizer = keras.optimizers.Adam(learning_rate=args.mu, clipnorm=1.0)
     #optimizer2 = keras.optimizers.SGD(learning_rate=args.mu2)
-    optimizer2 = keras.optimizers.Adam(learning_rate=args.mu2)
+    optimizer2 = keras.optimizers.Adam(learning_rate=args.mu2, clipnorm=1.0)
     # create a data object (here radar data)
     # start = time.time()
     if args.noniid_assignment == 1:
@@ -282,7 +285,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
     # time_count = (end - start)
     # print(Training time"time_count)
     # create a consensus object
-    cfa_consensus = CFA_GE_process(devices, device_index, args.N, args.mu2)
+    cfa_consensus = CFA_process(devices, device_index, args.N)
 
     while True:  # Run until solved
         # collect 1 batch
@@ -310,62 +313,6 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                     np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
                          training_end=training_end, epoch_count=epoch_count, loss=running_loss)
                     np.save(outfile_models, model_weights)
-            # check scheduling for parameter server
-            if parameter_server:
-                while not os.path.isfile(global_epoch):
-                    # implementing consensus
-                    print("waiting")
-                    pause(1)
-                try:
-                    epoch_global = np.load(global_epoch, allow_pickle=True)
-                except:
-                    pause(5)
-                    print("retrying opening global epoch counter")
-                    try:
-                        epoch_global = np.load(global_epoch, allow_pickle=True)
-                    except:
-                        print("failed reading global epoch")
-
-                if epoch_global == 0:
-                    training_signal = False
-
-                elif scheduling_tx[device_index, epoch_global] == 1:
-                    if epoch_global > epoch_count:
-                        epoch_count = epoch_global
-                        training_signal = False
-                    else:
-                        training_signal = True
-                else:
-                    # stop all computing, just save the previous model
-                    training_signal = True
-
-                # always refresh the local model using the PS one
-                stop_aggregation = False
-                while not os.path.isfile(global_model):
-                    # implementing consensus
-                    print("waiting")
-                    pause(1)
-                try:
-                    model_global = np.load(global_model, allow_pickle=True)
-                except:
-                    pause(5)
-                    print("retrying opening global model")
-                    try:
-                        model_global = np.load(global_model, allow_pickle=True)
-                    except:
-                        print("halting aggregation")
-                        stop_aggregation = True
-
-                if not stop_aggregation:
-                    model.set_weights(model_global.tolist())
-
-                if training_signal:
-                    model_weights = np.asarray(model.get_weights())
-                    model.save(checkpointpath1, include_optimizer=True, save_format='h5')
-                    np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
-                             training_end=training_end, epoch_count=epoch_count, loss=running_loss)
-                    np.save(outfile_models, model_weights)
-            # check schedulting for parameter server
 
         # Local learning update every "number of batches" batches
         # time_count = 0
@@ -399,68 +346,81 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             data_history = []
             label_history = []
 
-            # obtain a new test observation from local database
-            obs_t, labels_t = data_handle.getTrainingData(batch_size)
-            data_batch_t = preprocess_observation(obs_t, batch_size)
-            masks_t = tf.one_hot(labels_t, n_outputs)
-
-            with tf.GradientTape() as tape2:
-                # Train the model on data samples
-                classes = model(data_batch_t)
-                # Apply the masks
-                class_v = tf.reduce_sum(tf.multiply(classes, masks_t), axis=1)
-                # Calculate loss
-                loss = loss_function(labels_t, class_v)
-
-            # getting the last gradients
-            grads_t = tape2.gradient(loss, model.trainable_variables)
-            grads_v = []
-            for d in range(len(grads_t)):
-                grads_v.append(grads_t[d].numpy())
-            grads_v = np.asarray(grads_v)
-
-
-            #if not parameter_server and not federated:
-            #    print('Average batch training time {:.2f}'.format(time_count))
-
-
             model_weights = np.asarray(model.get_weights())
             model.save(checkpointpath1, include_optimizer=True, save_format='h5')
             np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
                      training_end=training_end, epoch_count=epoch_count, loss=running_loss)
             np.save(outfile_models, model_weights)
+            cfa_consensus.update_local_model(model_weights)
+            grads_v = []
+            for d in range(len(grads)):
+                grads_v.append(grads[d].numpy())
+            grads_v = np.asarray(grads_v)
+            cfa_consensus.update_local_gradient(grads_v)
+
+            # compute gradients for selected neighbors in get_tx_connectvity, obtain a new test observation from local database
+            obs_t, labels_t = data_handle.getTrainingData(batch_size)
+            data_batch_t = preprocess_observation(obs_t, batch_size)
+            masks_t = tf.one_hot(labels_t, n_outputs)
+            gradient_neighbor = cfa_consensus.get_tx_connectivity(device_index, args.N, devices)
+            outfile_n = 'results/dump_train_variables{}.npz'.format(gradient_neighbor)
+            outfile_models_n = 'results/dump_train_model{}.npy'.format(gradient_neighbor)
+            neighbor_model_for_gradient, success = cfa_consensus.get_neighbor_weights(epoch_count, outfile_n, outfile_models_n, epoch=0, max_lag=1)
+            if success:
+                model_transmitted.set_weights(neighbor_model_for_gradient.tolist())
+            else:
+                print("failed retrieving the model for gradient computation")
+
+            with tf.GradientTape() as tape2:
+                # Train the model on data samples
+                classes = model_transmitted(data_batch_t)
+                # Apply the masks
+                class_v = tf.reduce_sum(tf.multiply(classes, masks_t), axis=1)
+                # Calculate loss
+                loss = loss_function(labels_t, class_v)
+
+            # getting and save neighbor gradients
+            grads_t = tape2.gradient(loss, model_transmitted.trainable_variables)
+            grads_v = []
+            for d in range(len(grads_t)):
+                grads_v.append(grads_t[d].numpy())
+            grads_v = np.asarray(grads_v)
             np.save(outfile_models_grad, grads_v)
 
-
-            #  Consensus round
-            # update local model
-            cfa_consensus.update_local_model(model_weights)
-            cfa_consensus.update_local_gradient(grads_v)
-            # neighbor = cfa_consensus.get_connectivity(device_index, args.N, devices) # fixed neighbor
             np.random.seed(1)
             tf.random.set_seed(1)  # common initialization
             if not train_start:
                 if federated and not training_signal:
-                    eps_c = 1 / (args.N + 1)
+                    eps_c = args.eps
                     # apply consensus for model parameter
-                    # neighbor = np.random.choice(np.arange(devices), args.N, p=Probabilities, replace=False) # choose neighbor
-                    neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N, replace=False) # choose neighbor
-                    while neighbor == device_index:
-                        neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N,
-                                                    replace=False)  # choose neighbor
-                    print("Consensus from neighbor {} for device {}, local loss {:.2f}".format(neighbor, device_index,
+                    neighbor = cfa_consensus.get_connectivity(device_index, args.N, devices)  # fixed neighbor
+                    #if args.gradients == 0 or running_loss < 0.5:
+                    if args.gradients == 0:
+                        # random selection of neighor
+                        # neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N, replace=False) # choose neighbor
+                        # while neighbor == device_index:
+                        #     neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N,
+                        #                             replace=False)  # choose neighbor
+                        print("Consensus from neighbor {} for device {}, local loss {:.2f}".format(neighbor, device_index,
                                                                                                loss.numpy()))
+                        model.set_weights(cfa_consensus.federated_weights_computing(neighbor, args.N, epoch_count, eps_c, max_lag))
+                        if cfa_consensus.getTrainingStatusFromNeightbor():
+                            training_signal = True # stop local learning, just do validation
+                    else:
+                        # compute gradients as usual
 
-                    model.set_weights(cfa_consensus.federated_weights_computing(neighbor, args.N, epoch_count, eps_c, max_lag))
-                    if cfa_consensus.getTrainingStatusFromNeightbor():
-                        # a neighbor completed the training, with loss < target, transfer learning is thus applied (the device will copy and reuse the same model)
-                        training_signal = True # stop local learning, just do validation
-                    else: # compute gradients as usual
-                        if args.gradients == 1:
-                            print("Applying gradient updates...")
-                            grads = cfa_consensus.federated_grads_computing(neighbor, args.N, epoch_count, eps_c, max_lag)
+                        print("Consensus from neighbor {} for device {}, local loss {:.2f}".format(neighbor, device_index,
+                                                                                                 loss.numpy()))
+                        print("Applying gradient updates...")
+                        # model.set_weights(cfa_consensus.federated_weights_computing(neighbor, args.N, epoch_count, eps_c, max_lag))
+                        model_averaging = cfa_consensus.federated_weights_computing(neighbor, args.N, epoch_count, eps_c, max_lag)
+                        model.set_weights(model_averaging)
+                        if cfa_consensus.getTrainingStatusFromNeightbor():
+                            # model.set_weights(model_averaging)
+                            training_signal = True # stop local learning, just do validation
+                        else:
+                            grads = cfa_consensus.federated_grads_computing(neighbor, args.N, epoch_count, args.eps_grads, max_lag)
                             optimizer2.apply_gradients(zip(grads, model.trainable_variables))
-
             else:
                 print("Warm up")
                 train_start = False
@@ -524,8 +484,8 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
             if federated:
                 sio.savemat(
-                    "results/matlab/CFA_device_{}_samples_{}_devices_{}_active_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
-                        device_index, samples, devices, args.Ka_consensus, args.N, number_of_batches, batch_size, args.noniid_assignment, args.run, args.random_data_distribution), dict_1)
+                    "results/matlab/CFA_device_{}_samples_{}_devices_{}_active_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}_distribution{}_gradients{}.mat".format(
+                        device_index, samples, devices, args.Ka_consensus, args.N, number_of_batches, batch_size, args.noniid_assignment, args.run, args.random_data_distribution, args.gradients), dict_1)
                 sio.savemat(
                     "CFA_device_{}_samples_{}_devices_{}_neighbors_{}_batches_{}_size{}.mat".format(
                         device_index, samples, devices, args.N, number_of_batches, batch_size), dict_1)
@@ -572,9 +532,9 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
             if federated:
                 sio.savemat(
-                    "results/matlab/CFA_device_{}_samples_{}_devices_{}_active_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
+                    "results/matlab/CFA_device_{}_samples_{}_devices_{}_active_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}_distribution{}_gradients{}.mat".format(
                         device_index, samples, devices, args.Ka_consensus, args.N, number_of_batches, batch_size,
-                        args.noniid_assignment, args.run, args.random_data_distribution), dict_1)
+                        args.noniid_assignment, args.run, args.random_data_distribution, args.gradients), dict_1)
                 sio.savemat(
                     "CFA_device_{}_samples_{}_devices_{}_neighbors_{}_batches_{}_size{}.mat".format(
                         device_index, samples, devices, args.N, number_of_batches, batch_size), dict_1)
