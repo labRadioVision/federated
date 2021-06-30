@@ -10,22 +10,42 @@ class MnistData_task:
         (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data(
             path='mnist.npz'
         )
+        self.validation_train = 60000
+        self.validation_test = 10000
         # classes to train
-        num_class_per_node = 3
+        num_class_per_node = 6
         classes_per_node = random.sample(range(10), num_class_per_node)
-        mask = (y_train == classes_per_node[0]) | (y_train == classes_per_node[1]) | (y_train == classes_per_node[2])
-        #x_train_sub = x_train[mask]
-        #y_train_sub = y_train[mask]
+        # print(classes_per_node)
+        ra = np.arange(self.validation_train)
+        vec_list = []
+        for q in range(num_class_per_node):
+            mask = np.squeeze((y_train == classes_per_node[q]))
+            ctr = ra[mask]
+            for qq in range(ctr.size):
+                vec_list.append(ctr[qq])
 
+        # x_train_sub = x_train[mask]
+        # y_train_sub = y_train[mask]
         self.device_index = device_index
         self.samples = samples
         self.start_samples = start_samples
-        self.validation_train = 60000
-        self.validation_test = 10000
 
-        ra = np.arange(self.validation_train)
-        s = ra[mask]
-        s_list = random.sample(ra[mask].tolist(), self.samples)
+        # print(vec_list)
+        s_list = random.sample(vec_list, self.samples)
+
+        # classes_per_node = random.sample(range(10), num_class_per_node)
+        # mask = (y_train == classes_per_node[0]) | (y_train == classes_per_node[1]) | (y_train == classes_per_node[2])
+        # #x_train_sub = x_train[mask]
+        # #y_train_sub = y_train[mask]
+        #
+        # self.device_index = device_index
+        # self.samples = samples
+        # self.start_samples = start_samples
+        #
+        #
+        # ra = np.arange(self.validation_train)
+        # s = ra[mask]
+        # s_list = random.sample(ra[mask].tolist(), self.samples)
 
         self.x_train = np.expand_dims(x_train[s_list, :, :], 3) # DATA PARTITION
         self.x_train = (self.x_train.astype('float32').clip(0)) / 255
