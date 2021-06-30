@@ -186,7 +186,7 @@ def create_q_model():
     # layer4 = layers.Flatten()(layer3)
     #
     # layer5 = layers.Dense(512, activation="relu")(layer4)
-    classification = layers.Dense(n_outputs, activation="linear")(layer5)
+    classification = layers.Dense(n_outputs, activation="softmax")(layer5)
 
     return keras.Model(inputs=inputs, outputs=classification)
 
@@ -378,11 +378,9 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
                 with tf.GradientTape() as tape:
                     # Train the model on data samples
-                    classes = model(data_sample)
-                    # Apply the masks
-                    class_v = tf.reduce_sum(tf.multiply(classes, masks), axis=1)
+                    classes = model(data_sample, training=False)
                     # Calculate loss
-                    loss = loss_function(label_sample, class_v)
+                    loss = tf.reduce_mean(-tf.reduce_sum(masks * tf.math.log(classes), axis=1))
 
                 # Backpropagation
                 grads = tape.gradient(loss, model.trainable_variables)
@@ -431,44 +429,6 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             # check if parameter server is enabled
             # stop_aggregation = False
 
-            # if parameter_server:
-            #     # pause(refresh_server)
-            #     while not os.path.isfile(global_model):
-            #         # implementing consensus
-            #         print("waiting")
-            #         pause(1)
-            #     try:
-            #         model_global = np.load(global_model, allow_pickle=True)
-            #     except:
-            #         pause(5)
-            #         print("retrying opening global model")
-            #         try:
-            #             model_global = np.load(global_model, allow_pickle=True)
-            #         except:
-            #             print("halting aggregation")
-            #             stop_aggregation = True
-            #
-            #     if not stop_aggregation:
-            #         # print("updating from global model inside the parmeter server")
-            #         for k in range(cfa_consensus.layers):
-            #             # model_weights[k] = model_weights[k]+ 0.5*(model_global[k]-model_weights[k])
-            #             model_weights[k] = model_global[k]
-            #         model.set_weights(model_weights.tolist())
-            #
-            #     while not os.path.isfile(global_epoch):
-            #         # implementing consensus
-            #         print("waiting")
-            #         pause(1)
-            #     try:
-            #         epoch_global = np.load(global_epoch, allow_pickle=True)
-            #     except:
-            #         pause(5)
-            #         print("retrying opening global epoch counter")
-            #         try:
-            #             epoch_global = np.load(global_epoch, allow_pickle=True)
-            #         except:
-            #             print("halting aggregation")
-
             del model_weights
 
 
@@ -484,11 +444,10 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                 label_sample = np.array(labels_valid)
                 # Create a mask to calculate loss
                 masks = tf.one_hot(label_sample, n_outputs)
-                classes = model(data_sample)
-                # Apply the masks
-                class_v = tf.reduce_sum(tf.multiply(classes, masks), axis=1)
+                classes = model(data_sample, training=False)
                 # Calculate loss
-                loss = loss_function(label_sample, class_v)
+                # loss = loss_function(label_sample, classes)
+                loss = tf.reduce_mean(-tf.reduce_sum(masks * tf.math.log(classes), axis=1)).numpy()
                 avg_cost += loss / number_of_batches_for_validation  # Training loss
             epoch_loss_history.append(avg_cost)
             print("Device {} epoch count {}, validation loss {:.2f}".format(device_index, epoch_count,
