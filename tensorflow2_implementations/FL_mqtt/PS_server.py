@@ -28,15 +28,27 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-MQTT", default="192.168.1.3", help="mqtt broker ex 192.168.1.3", type=str)
 parser.add_argument("-topic_PS", default="PS", help="FL with PS topic", type=str)
 parser.add_argument("-topic_post_model", default="post model", help="post models", type=str)
-parser.add_argument('-devices', default=2, help="sets the number of active devices", type=int)
+parser.add_argument('-devices', default=2, help="sets the number of total devices", type=int)
+parser.add_argument('-active_devices', default=2, help="sets the number of active devices", type=int)
 args = parser.parse_args()
 
-
+max_epochs = 500
 devices = args.devices
+active = args.active_devices
 # Configuration paramaters for the whole setup
 seed = 42
-
+local_models = []
 detObj = {}
+counter = 0
+scheduling_tx = np.zeros((devices, max_epochs*2), dtype=int)
+indexes_tx = np.zeros((active, max_epochs*2), dtype=int)
+for k in range(max_epochs*2):
+    # inds = np.random.choice(devices, args.Ka, replace=False)
+    sr = devices - active + 1
+    sr2 = k % sr
+    inds = np.arange(sr2, args.Ka + sr2)
+    scheduling_tx[inds, k] = 1
+    indexes_tx[:,k] = inds
 
 def create_q_model():
     # Network defined by the Deepmind paper
@@ -65,24 +77,44 @@ def PS_callback(client, userdata, message):
     global mqttc
     global model_global, layers
     global epoch_count, frame_count
-
+    global local_models
+    global counter
     st = json.loads(message.payload)
     detObj = {}
+    update_factor = 0.99
+    if scheduling_tx[st['device'], epoch_count] == 1:
+        counter += 1
+        local_models.append(st['model'])
+        frame_count[st['device']] += 1
 
+    if counter == active:
+        epoch_count += 1
+        model_parameters = model_global.get_weights()
+        for q in range(layers):
+            for k in range(active):
+                model_parameters[q] = model_parameters[q] + update_factor * (
+                            local_models[k][q] - model_parameters[q]) / active
+
+        local_models = [] # reset
     #local_rounds = st['local_rounds']
 
+    # detObj['model'] = model.get_weights()
+    # detObj['device'] = device_index
+    # detObj['framecount'] = frame_count
+    # detObj['epoch'] = epoch_count
+    # detObj['training_end'] = training_end
     # ps
     # st['local_rounds']
     # st['epoch_global']
     # st['global_model']
 
-    print('Frame count {}',format(frame_count))
+    print('Frame count {}', format(frame_count))
 
-    detObj['model'] = model.get_weights()
-    detObj['device'] = device_index
-    detObj['framecount'] = frame_count
-    detObj['epoch'] = epoch_count
-    detObj['training_end'] = training_end
+    # detObj['model'] = model.get_weights()
+    # detObj['device'] = device_index
+    # detObj['framecount'] = frame_count
+    # detObj['epoch'] = epoch_count
+    # detObj['training_end'] = training_end
 
     while mqttc.publish(args.topic_PS, json.dumps(detObj)):
         pause(2)
@@ -122,11 +154,14 @@ if __name__ == "__main__":
 
         # backup the model and the model target
         model_global = models.load_model(checkpointpath1)
-
+        layers = model_global.get_weights().size
     else:
         train_start = True
         model_global = create_q_model()
-        frame_count = 0
+        # for k in range(devices):
+        #     local_models.append(create_q_model())
+        #
+        frame_count = np.zeros(devices)
         epoch_count = 0
 
     training_end = False
