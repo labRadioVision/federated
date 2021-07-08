@@ -85,8 +85,8 @@ class CFA_process:
 
         for q in range(neighbors):
             # neighbor model and stats (train variables)
-            outfile_models = 'results/dump_train_model{}.npy'.format(neighbor[q])
-            outfile = 'results/dump_train_variables{}.npz'.format(neighbor[q])
+            outfile_models = 'results/dump_train_model{}.npy'.format(neighbor)
+            outfile = 'results/dump_train_variables{}.npz'.format(neighbor)
 
             while not os.path.isfile(outfile):
                 print("waiting for variables")

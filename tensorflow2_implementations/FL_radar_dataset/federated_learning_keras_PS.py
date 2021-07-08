@@ -1,4 +1,5 @@
 from DataSets import RadarData
+from DataSets_tasks import RadarData_tasks
 from consensus.consensus_v2 import CFA_process
 from consensus.parameter_server import Parameter_Server
 # best use with PS active
@@ -14,7 +15,9 @@ import warnings
 import glob
 import datetime
 import scipy.io as sio
-import multiprocessing
+# import multiprocessing
+# import multiprocessing
+import threading
 import math
 from matplotlib.pyplot import pause
 import time
@@ -29,8 +32,8 @@ parser.add_argument('-consensus', default=0, help="set 1 to enable consensus, se
 parser.add_argument('-mu', default=0.00025, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-eps', default=1, help="sets the mixing parameters for model averaging (CFA)", type=float)
 parser.add_argument('-target', default=0.1, help="sets the target loss to stop federation", type=float)
-parser.add_argument('-K', default=80, help="sets the number of network devices", type=int)
-parser.add_argument('-Ka', default=40, help="sets the number of active devices per round in FA (<= K)", type=int)
+parser.add_argument('-K', default=30, help="sets the number of network devices", type=int)
+parser.add_argument('-Ka', default=20, help="sets the number of active devices per round in FA (<= K)", type=int)
 parser.add_argument('-N', default=1, help="sets the max. number of neighbors per device per round in CFA", type=int)
 parser.add_argument('-samp', default=15, help="sets the number samples per device", type=int)
 parser.add_argument('-noniid_assignment', default=0, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
@@ -96,22 +99,29 @@ max_epochs = 600
 validation_start = 1 # start validation in epochs
 
 # Using huber loss for stability
-loss_function = keras.losses.Huber()
+ #loss_function = keras.losses.Huber()
 
-def get_noniid_data(total_training_size, devices, batch_size):
-    samples = np.random.random_integers(batch_size, total_training_size - batch_size * (devices - 1),
-                                        devices)  # create random numbers
-    samples = samples / np.sum(samples, axis=0) * total_training_size  # force them to sum to totals
-    # Ignore the following if you don't need integers
-    samples = np.round(samples)  # transform them into integers
-    remainings = total_training_size - np.sum(samples, axis=0)  # check if there are corrections to be done
-    step = 1 if remainings > 0 else -1
-    while remainings != 0:
-        i = np.random.randint(devices)
-        if samples[i] + step >= 0:
-            samples[i] += step
-            remainings -= step
-    return samples
+# Using crossentropy
+loss_function = tf.keras.losses.CategoricalCrossentropy(
+    from_logits=False,
+    label_smoothing=0,
+    reduction="auto",
+    name="categorical_crossentropy",
+)
+# def get_noniid_data(total_training_size, devices, batch_size):
+#     samples = np.random.random_integers(batch_size, total_training_size - batch_size * (devices - 1),
+#                                         devices)  # create random numbers
+#     samples = samples / np.sum(samples, axis=0) * total_training_size  # force them to sum to totals
+#     # Ignore the following if you don't need integers
+#     samples = np.round(samples)  # transform them into integers
+#     remainings = total_training_size - np.sum(samples, axis=0)  # check if there are corrections to be done
+#     step = 1 if remainings > 0 else -1
+#     while remainings != 0:
+#         i = np.random.randint(devices)
+#         if samples[i] + step >= 0:
+#             samples[i] += step
+#             remainings -= step
+#     return samples
 ####
 
 def preprocess_observation(obs, batch_size):
@@ -131,8 +141,8 @@ def create_q_model():
     layer4 = layers.Flatten()(layer3)
 
     layer5 = layers.Dense(512, activation="relu")(layer4)
-    classification = layers.Dense(n_outputs, activation="linear")(layer5)
-
+    # classification = layers.Dense(n_outputs, activation="linear")(layer5)
+    classification = layers.Dense(n_outputs, activation="softmax")(layer5)
     return keras.Model(inputs=inputs, outputs=classification)
 
 def processParameterServer(devices, active_devices_per_round, federated, refresh_server=1):
@@ -200,7 +210,12 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
     # set an arbitrary optimizer, here Adam is used
     optimizer = keras.optimizers.Adam(learning_rate=args.mu, clipnorm=1.0)
     # create a data object (here radar data)
-    data_handle = RadarData(filepath, device_index, start_samples, samples, full_data_size, args.random_data_distribution)
+    if args.noniid_assignment == 1:
+        data_handle = RadarData_tasks(filepath, device_index, start_samples, samples, full_data_size)
+    else:
+        data_handle = RadarData(filepath, device_index, start_samples, samples, full_data_size, args.random_data_distribution)
+
+    # data_handle = RadarData(filepath, device_index, start_samples, samples, full_data_size, args.random_data_distribution)
     # create a consensus object
     cfa_consensus = CFA_process(devices, device_index, args.N)
 
@@ -226,11 +241,16 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
                 with tf.GradientTape() as tape:
                     # Train the model on data samples
-                    classes = model(data_sample)
+                    classes = model(data_sample, training=False)
                     # Apply the masks
-                    class_v = tf.reduce_sum(tf.multiply(classes, masks), axis=1)
+                    # for k in range(batch_size):
+                    #     class_v[k] = tf.argmax(classes[k])
+                    # class_v = tf.reduce_sum(tf.multiply(classes, masks), axis=1)
+                    # Take best action
+
                     # Calculate loss
-                    loss = loss_function(label_sample, class_v)
+                    loss = loss_function(masks, classes)
+                    # loss = tf.reduce_mean(-tf.reduce_sum(masks * tf.math.log(classes), axis=1)
 
                 # Backpropagation
                 grads = tape.gradient(loss, model.trainable_variables)
@@ -311,17 +331,21 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                 label_sample = np.array(labels_valid)
                 # Create a mask to calculate loss
                 masks = tf.one_hot(label_sample, n_outputs)
-                classes = model(data_sample)
+                classes = model(data_sample, training=False)
                 # Apply the masks
-                class_v = tf.reduce_sum(tf.multiply(classes, masks), axis=1)
+                # class_v = tf.reduce_sum(tf.multiply(classes, masks), axis=1)
+                # class_v = np.zeros(batch_size, dtype=int)
+                # for k in range(batch_size):
+                #     class_v[k] = tf.argmax(classes[k]).numpy()
                 # Calculate loss
-                loss = loss_function(label_sample, class_v)
+                # loss = loss_function(label_sample, classes)
+                loss = loss_function(masks, classes).numpy()
                 avg_cost += loss / number_of_batches_for_validation  # Training loss
             epoch_loss_history.append(avg_cost)
             print("Device {} epoch count {}, validation loss {:.2f}".format(device_index, epoch_count,
                                                                                  avg_cost))
             # mean loss for last 5 epochs
-            running_loss = np.mean(epoch_loss_history[-5:])
+            running_loss = np.mean(epoch_loss_history[-1:])
 
 
         if running_loss < target_loss or training_signal:  # Condition to consider the task solved
@@ -486,11 +510,11 @@ if __name__ == "__main__":
     # samples = int(fraction_training/devices) # training samples per device
 
     ######################### Create a non-iid assignment  ##########################
-    if args.noniid_assignment == 1:
-        total_training_size = training_set_per_device * devices
-        samples = get_noniid_data(total_training_size, devices, batch_size)
-        while np.min(samples) < batch_size:
-            samples = get_noniid_data(total_training_size, devices, batch_size)
+    # if args.noniid_assignment == 1:
+    #     total_training_size = training_set_per_device * devices
+    #     samples = get_noniid_data(total_training_size, devices, batch_size)
+    #     while np.min(samples) < batch_size:
+    #         samples = get_noniid_data(total_training_size, devices, batch_size)
     #############################################################################
     print(samples)
 
@@ -506,14 +530,15 @@ if __name__ == "__main__":
             if ii == 0:
                 start_index = 0
             else:
-                start_index = start_index + int(samples[ii-1])
-            t.append(multiprocessing.Process(target=processData, args=(ii, start_index, int(samples[ii]), federated, validation_train, number_of_batches, parameter_server, samples)))
+                start_index = start_index + int(samples[ii - 1])
+            t.append(threading.Thread(target=processData, args=(ii, start_index, int(samples[ii]), federated, validation_train, number_of_batches, parameter_server, samples)))
             t[ii].start()
 
         # last process is for the target server
         if parameter_server:
             print("Target server starting with active devices {}".format(active_devices_per_round))
-            t.append(multiprocessing.Process(target=processParameterServer, args=(devices, active_devices_per_round, federated, refresh_server)))
+            t.append(threading.Thread(target=processParameterServer,
+                                      args=(devices, active_devices_per_round, federated, refresh_server)))
             t[devices].start()
     else: # run centralized learning on device 0 (data center)
         processData(0, 0, training_set_per_device*devices, federated, validation_train, number_of_batches, parameter_server, samples)

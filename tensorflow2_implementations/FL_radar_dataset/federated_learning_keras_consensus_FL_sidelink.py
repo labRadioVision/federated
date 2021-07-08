@@ -1,6 +1,6 @@
 from DataSets import RadarData
 from DataSets_tasks import RadarData_tasks
-from consensus.consensus_v3 import CFA_process
+from consensus.consensus_v4 import CFA_process
 from consensus.parameter_server_v2 import Parameter_Server
 # use only for consensus , PS only for energy efficiency
 # from ReplayMemory import ReplayMemory
@@ -34,7 +34,7 @@ parser.add_argument('-target', default=0.1, help="sets the target loss to stop f
 parser.add_argument('-K', default=30, help="sets the number of network devices", type=int)
 parser.add_argument('-Ka', default=5, help="sets the number of active devices per round in FA (<= K)", type=int)
 parser.add_argument('-N', default=1, help="sets the max. number of neighbors per device per round in CFA", type=int)
-parser.add_argument('-Ka_consensus', default=20, help="sets the number of active devices for consensus", type=int)
+parser.add_argument('-Ka_consensus', default=30, help="sets the number of active devices for consensus", type=int)
 parser.add_argument('-samp', default=15, help="sets the number samples per device", type=int)
 parser.add_argument('-noniid_assignment', default=0, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
 parser.add_argument('-run', default=0, help=" set the run id", type=int)
@@ -398,7 +398,8 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
                     eps_c = 1 / (args.N + 1)
                     # apply consensus for model parameter
                     # neighbor = np.random.choice(np.arange(devices), args.N, p=Probabilities, replace=False) # choose neighbor
-                    neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N, replace=False) # choose neighbor
+                    # neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N, replace=False) # choose neighbor
+                    neighbor = cfa_consensus.get_connectivity(device_index, args.N, devices)  # fixed neighbor
                     while neighbor == device_index:
                         neighbor = np.random.choice(indexes_tx[:, epoch_count - 1], args.N,
                                                     replace=False)  # choose neighbor
@@ -517,7 +518,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
             if federated:
                 sio.savemat(
-                    "results/matlab/CFA_device_{}_samples_{}_devices_{}_active_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
+                    "results/matlab/CFAS_device_{}_samples_{}_devices_{}_active_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
                         device_index, samples, devices, args.Ka_consensus, args.N, number_of_batches, batch_size, args.noniid_assignment, args.run, args.random_data_distribution), dict_1)
                 sio.savemat(
                     "CFA_device_{}_samples_{}_devices_{}_neighbors_{}_batches_{}_size{}.mat".format(
@@ -565,7 +566,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
 
             if federated:
                 sio.savemat(
-                    "results/matlab/CFA_device_{}_samples_{}_devices_{}_active_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
+                    "results/matlab/CFAS_device_{}_samples_{}_devices_{}_active_{}_neighbors_{}_batches_{}_size{}_noniid{}_run{}_distribution{}.mat".format(
                         device_index, samples, devices, args.Ka_consensus, args.N, number_of_batches, batch_size,
                         args.noniid_assignment, args.run, args.random_data_distribution), dict_1)
                 sio.savemat(

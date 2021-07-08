@@ -5,8 +5,8 @@ import scipy.io as sio
 import random
 # from tensorflow.keras.utils import to_categorical
 
-class RadarData:
-    def __init__(self, filepath, device_index, start_samples, samples, validation_train, random_data_distribution=0):
+class RadarData_tasks:
+    def __init__(self, filepath, device_index, start_samples, samples, validation_train, num_class_per_node=4):
         # filepath = 'data_mimoradar/data_mmwave_900.mat'
         self.filepath = filepath
         self.device_index = device_index
@@ -21,11 +21,22 @@ class RadarData:
         # y_train_t = to_categorical(y_train)
         x_train = (x_train.astype('float32').clip(0)) / 1000  # DATA PREPARATION (NORMALIZATION AND SCALING OF FFT MEASUREMENTS)
 
-        if random_data_distribution == 1:
-            s_list = random.sample(range(self.validation_train), self.samples)
-        else:
-            # s_list = np.arange(self.device_index * self.samples, (self.device_index + 1) * self.samples)
-            s_list = np.arange(self.start_samples, self.samples + self.start_samples)
+        num_class_per_node = 4
+        classes_per_node = random.sample(range(6), num_class_per_node)
+        # print(classes_per_node)
+        ra = np.arange(self.validation_train)
+        vec_list = []
+        for q in range(num_class_per_node):
+            mask = np.squeeze((y_train == classes_per_node[q]))
+            ctr = ra[mask]
+            for qq in range(ctr.size):
+                vec_list.append(ctr[qq])
+
+        # x_train_sub = x_train[mask]
+        # y_train_sub = y_train[mask]
+
+        # print(vec_list)
+        s_list = random.sample(vec_list, self.samples)
 
         self.x_train = np.expand_dims(x_train[s_list, :, :], 3) # DATA PARTITION
         self.y_train = np.squeeze(y_train[s_list])
