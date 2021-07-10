@@ -28,7 +28,7 @@ import datetime
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, 0 to start from the beginning", type=float)
-parser.add_argument("-MQTT", default="192.168.1.7", help="mqtt broker ex 192.168.1.3", type=str)
+parser.add_argument("-MQTT", default="192.168.1.3", help="mqtt broker ex 192.168.1.3", type=str)
 parser.add_argument("-topic_PS", default="PS", help="FL with PS topic", type=str)
 parser.add_argument("-topic_post_model", default="post model", help="post models", type=str)
 parser.add_argument("-topic_consensus", default="consensus", help="Consensus driven FL", type=str)
@@ -276,11 +276,11 @@ if __name__ == "__main__":
                 print("Error while deleting file")
 
     MQTT_broker = args.MQTT
-    device_index = args.ID
+    device_index = args.RID
     client_py = "learner " + str(device_index)
     mqttc = mqtt.Client(client_id=client_py, clean_session=True)
     mqttc.connect(host=MQTT_broker, port=1885, keepalive=60)
-    PS_mqtt_topic = args.topic_PS
+    PS_mqtt_topic = args.PS_topic
     mqttc.subscribe(PS_mqtt_topic, qos=0)
     mqttc.message_callback_add(PS_mqtt_topic, PS_callback)
     start_index = device_index*training_set_per_device

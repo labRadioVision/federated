@@ -40,6 +40,9 @@ seed = 42
 local_models = []
 detObj = {}
 counter = 0
+n_outputs = 10
+training_end_signal = False
+active_check = np.zeros(active, dtype=bool)
 scheduling_tx = np.zeros((devices, max_epochs*2), dtype=int)
 indexes_tx = np.zeros((active, max_epochs*2), dtype=int)
 for k in range(max_epochs*2):
@@ -79,36 +82,44 @@ def PS_callback(client, userdata, message):
     global epoch_count, frame_count
     global local_models
     global counter
+    global active_check
+    global training_end_signal
     st = json.loads(message.payload)
     detObj = {}
     update_factor = 0.99
-    if scheduling_tx[st['device'], epoch_count] == 1:
-        counter += 1
-        local_models.append(st['model'])
-        frame_count[st['device']] += 1
 
-    if counter == active:
+    if st['training_end']:
+        training_end_signal = True
+        # transfer learning
+        model_global.set_weights(st['model'])
+
+    if scheduling_tx[st['device'], epoch_count] == 1 and not training_end_signal:
+        # wait for all models
+        if not active_check[st['device']]:
+            counter += 1
+            active_check[st['device']] = True
+        local_models[st['device']] = st['model']
+
+
+    if counter == active or training_end_signal:
+        # start averaging
+        active_check = np.zeros(active, dtype=bool) # reset
+        counter = 0
         epoch_count += 1
-        model_parameters = model_global.get_weights()
-        for q in range(layers):
-            for k in range(active):
-                model_parameters[q] = model_parameters[q] + update_factor * (
+        if training_end_signal:
+            model_parameters = model_global.get_weights()
+            for q in range(layers):
+                for k in range(active):
+                    model_parameters[q] = model_parameters[q] + update_factor * (
                             local_models[k][q] - model_parameters[q]) / active
-
+            model_global.set_weights(model_parameters)
         local_models = [] # reset
     #local_rounds = st['local_rounds']
 
-    # detObj['model'] = model.get_weights()
-    # detObj['device'] = device_index
-    # detObj['framecount'] = frame_count
-    # detObj['epoch'] = epoch_count
-    # detObj['training_end'] = training_end
-    # ps
-    # st['local_rounds']
-    # st['epoch_global']
-    # st['global_model']
+    detObj['global_model'] = model_global.get_weights()
+    detObj['global_epoch'] = epoch_count
 
-    print('Frame count {}', format(frame_count))
+    print('Global epoch count {}', format(epoch_count))
 
     # detObj['model'] = model.get_weights()
     # detObj['device'] = device_index
