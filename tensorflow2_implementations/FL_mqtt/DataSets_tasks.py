@@ -15,7 +15,7 @@ class RadarData_tasks:
         self.validation_train = validation_train
         # train data
         # database = sio.loadmat(self.filepath)
-        database = sio.loadmat('data_mimo_radar/data_training_mmwave_900.mat')
+        database = sio.loadmat('data/data_training_mmwave_900.mat')
         x_train = database['mmwave_data_train']
         y_train = database['label_train']
         # y_train_t = to_categorical(y_train)
@@ -41,7 +41,7 @@ class RadarData_tasks:
         self.x_train = np.expand_dims(x_train[s_list, :, :], 3) # DATA PARTITION
         self.y_train = np.squeeze(y_train[s_list])
         #test data
-        database = sio.loadmat('data_mimo_radar/data_validation_mmwave_900.mat')
+        database = sio.loadmat('data/data_validation_mmwave_900.mat')
         x_test = database['mmwave_data_test']
         y_test = database['label_test']
         self.y_test = np.squeeze(y_test[:self.validation_train])

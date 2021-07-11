@@ -6,6 +6,7 @@ from consensus.consensus_v3 import CFA_process
 # best use with PS active
 # from ReplayMemory import ReplayMemory
 import os
+import pickle
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -38,10 +39,11 @@ parser.add_argument('-eps', default=1, help="sets the mixing parameters for mode
 parser.add_argument("-local_rounds", default=4, help="number of local rounds", type=int)
 parser.add_argument('-target', default=0.1, help="sets the target loss to stop federation", type=float)
 parser.add_argument('-N', default=1, help="sets the max. number of neighbors per device per round in CFA", type=int)
-parser.add_argument('-samp', default=500, help="sets the number samples per device", type=int)
-parser.add_argument('-batches', default=5, help="sets the number of batches per learning round", type=int)
-parser.add_argument('-batch_size', default=100, help="sets the batch size per learning round", type=int)
+parser.add_argument('-samp', default=15, help="sets the number samples per device", type=int)
+parser.add_argument('-batches', default=3, help="sets the number of batches per learning round", type=int)
+parser.add_argument('-batch_size', default=5, help="sets the batch size per learning round", type=int)
 parser.add_argument('-input_data', default='data_mimoradar/data_mmwave_900.mat', help="sets the path to the federated dataset", type=str)
+parser.add_argument('-devices', default=1, help="sets the tot number of devices", type=int)
 parser.add_argument('-noniid_assignment', default=0, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
 args = parser.parse_args()
 
@@ -49,19 +51,28 @@ args = parser.parse_args()
 target_loss = args.target
 # Configuration paramaters for the whole setup
 seed = 42
+devices = args.devices
+publishing = False
 filepath = args.input_data
 local_rounds = args.local_rounds
 # batch_size = 5  # Size of batch taken from replay buffer
 batch_size = args.batch_size
 number_of_batches = args.batches
 training_set_per_device = args.samp # NUMBER OF TRAINING SAMPLES PER DEVICE
-validation_train = 60000  # VALIDATION and training DATASET size
-validation_test = 10000
+validation_train = 900  # VALIDATION and training DATASET size
+validation_test = 900
 number_of_batches_for_validation = int(validation_test/batch_size)
 
 print("Number of batches for learning {}".format(number_of_batches))
 
-max_lag = number_of_batches*2 # consensus max delay 2= 2 epochs max
+if (training_set_per_device > validation_train/devices):
+    training_set_per_device = math.floor(validation_train/devices)
+    print(training_set_per_device)
+
+if batch_size > training_set_per_device:
+    batch_size = training_set_per_device
+
+#max_lag = number_of_batches*2 # consensus max delay 2= 2 epochs max
 
 n_outputs = 6  # 6 classes
 max_epochs = 200
@@ -76,6 +87,12 @@ loss_function = tf.keras.losses.CategoricalCrossentropy(
     name="categorical_crossentropy",
 )
 detObj = {}
+
+def on_publish(client,userdata,result):             #create function for callback
+    global publishing
+    publishing = False
+    print("data published \n")
+    pass
 
 def preprocess_observation(obs, batch_size):
     img = obs# crop and downsize
@@ -94,6 +111,11 @@ def create_q_model():
     layer4 = layers.Flatten()(layer3)
 
     layer5 = layers.Dense(512, activation="relu")(layer4)
+    # layer1 = layers.Conv2D(4, kernel_size=(5, 5), activation="relu")(inputs)
+    # layer2 = layers.AveragePooling2D(pool_size=(2, 2))(layer1)
+    # layer3 = layers.Conv2D(8, kernel_size=(5, 5), activation="relu")(layer2)
+    # layer4 = layers.AveragePooling2D(pool_size=(2, 2))(layer3)
+    # layer5 = layers.Flatten()(layer4)
     classification = layers.Dense(n_outputs, activation="softmax")(layer5)
 
     return keras.Model(inputs=inputs, outputs=classification)
@@ -101,26 +123,30 @@ def create_q_model():
 def PS_callback(client, userdata, message):
     # print("ok")
     global mqttc
+    global publishing
     global model
     global epoch_count, frame_count, training_set_per_device, max_epochs
     global number_of_batches, training_signal, number_of_batches_for_validation
     global layers, data_handle, target_loss, training_end
-    global data_history, label_history, validation_start, device_index, epoch_loss_history
+    global validation_start, device_index, epoch_loss_history
     global outfile, outfile_models, checkpointpath1
     # model_weights = np.asarray(model.get_weights())
-    st = json.loads(message.payload)
+    st = pickle.loads(message.payload)
     detObj = {}
     local_round = 0
+    rx_global_model = []
+    for k in range(layers):
+        rx_global_model.append(np.asarray(st['global_model_layer{}'.format(k)]))
     global_epoch = st['global_epoch']
     # model_global = st['global_model']
-    model.set_weights(st['global_model'])
+    model.set_weights(rx_global_model)
 
     # ps
     # st['local_rounds']
     # st['epoch_global']
     # st['global_model']
 
-    print('Global epoch {}, local epoch',format(epoch_count, global_epoch))
+    print('Local epoch {}, global epoch {}'.format(epoch_count, global_epoch))
 
     # validation tool for device 'device_index'
     if epoch_count > validation_start:
@@ -181,7 +207,8 @@ def PS_callback(client, userdata, message):
             sio.savemat(
                 "CFA_device_{}_samples_{}_batches_{}_size{}.mat".format(
                     device_index, training_set_per_device, number_of_batches, batch_size), dict_1)
-
+    data_history = []
+    label_history = []
     while local_round < local_rounds and not training_end:
         frame_count += 1
         obs, labels = data_handle.getTrainingData(batch_size)
@@ -189,9 +216,6 @@ def PS_callback(client, userdata, message):
         # Save data and labels in the current learning session
         data_history.append(data_batch)
         label_history.append(labels)
-        # Local learning update every "number of batches" batches
-        data_history = []
-        label_history = []
         # Local learning update every "number of batches" batches
         if frame_count % number_of_batches == 0 and not training_signal:
             epoch_count += 1
@@ -219,15 +243,19 @@ def PS_callback(client, userdata, message):
             data_history = []
             label_history = []
 
-    detObj['model'] = model.get_weights()
+    model_list = model.get_weights()
+    for k in range(layers):
+        detObj['model_layer{}'.format(k)] = model_list[k].tolist()
     detObj['device'] = device_index
     detObj['framecount'] = frame_count
     detObj['local_epoch'] = epoch_count
     detObj['training_end'] = training_end
+    # print(publishing)
+    # while publishing:
+    #     pause(2)
+    # publishing = True
+    mqttc.publish(args.topic_post_model, pickle.dumps(detObj), retain=True)
 
-    while mqttc.publish(args.topic_post_model, json.dumps(detObj)):
-        pause(2)
-        print("error sending")
 
     if training_end:
         mqttc.stop_loop()
@@ -280,8 +308,9 @@ if __name__ == "__main__":
     client_py = "learner " + str(device_index)
     mqttc = mqtt.Client(client_id=client_py, clean_session=True)
     mqttc.connect(host=MQTT_broker, port=1885, keepalive=60)
+    #mqttc.on_publish = on_publish
     PS_mqtt_topic = args.topic_PS
-    mqttc.subscribe(PS_mqtt_topic, qos=0)
+    mqttc.subscribe(PS_mqtt_topic, qos=1)
     mqttc.message_callback_add(PS_mqtt_topic, PS_callback)
     start_index = device_index*training_set_per_device
 
@@ -381,15 +410,21 @@ if __name__ == "__main__":
             data_history = []
             label_history = []
 
-    detObj['model'] = model.get_weights()
+    model_list = model.get_weights()
+    for k in range(layers):
+        detObj['model_layer{}'.format(k)] = model_list[k].tolist()
     detObj['device'] = device_index
     detObj['framecount'] = frame_count
-    detObj['epoch'] = epoch_count
+    detObj['local_epoch'] = epoch_count
     detObj['training_end'] = training_end
-
-    while mqttc.publish(args.topic_post_model, json.dumps(detObj)):
-        pause(2)
-        print("error sending")
+    # mqttc.publish(args.topic_post_model, json.dumps(detObj))
+    # while publishing:
+    #     pause(2)
+    # publishing = True
+    mqttc.publish(args.topic_post_model, pickle.dumps(detObj), retain=True)
+    # while mqttc.publish(args.topic_post_model, json.dumps(detObj)):
+    #     pause(2)
+    #     print("error sending")
     # subscribe to PS and wait
     mqttc.loop_forever()
 

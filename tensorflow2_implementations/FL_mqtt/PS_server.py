@@ -4,6 +4,7 @@ from consensus.parameter_server_v2 import Parameter_Server
 # best use with PS active
 # from ReplayMemory import ReplayMemory
 import os
+import pickle
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -25,22 +26,23 @@ import datetime
 
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
-parser.add_argument("-MQTT", default="192.168.1.3", help="mqtt broker ex 192.168.1.3", type=str)
+parser.add_argument("-MQTT", default="192.168.1.7", help="mqtt broker ex 192.168.1.3", type=str)
 parser.add_argument("-topic_PS", default="PS", help="FL with PS topic", type=str)
 parser.add_argument("-topic_post_model", default="post model", help="post models", type=str)
-parser.add_argument('-devices', default=2, help="sets the number of total devices", type=int)
-parser.add_argument('-active_devices', default=2, help="sets the number of active devices", type=int)
+parser.add_argument('-devices', default=1, help="sets the number of total devices", type=int)
+parser.add_argument('-active_devices', default=1, help="sets the number of active devices", type=int)
 args = parser.parse_args()
 
 max_epochs = 500
 devices = args.devices
 active = args.active_devices
 # Configuration paramaters for the whole setup
+publishing = False
 seed = 42
 local_models = []
 detObj = {}
 counter = 0
-n_outputs = 10
+n_outputs = 6
 training_end_signal = False
 active_check = np.zeros(active, dtype=bool)
 scheduling_tx = np.zeros((devices, max_epochs*2), dtype=int)
@@ -49,29 +51,34 @@ for k in range(max_epochs*2):
     # inds = np.random.choice(devices, args.Ka, replace=False)
     sr = devices - active + 1
     sr2 = k % sr
-    inds = np.arange(sr2, args.Ka + sr2)
+    inds = np.arange(sr2, active + sr2)
     scheduling_tx[inds, k] = 1
     indexes_tx[:,k] = inds
 
+def on_publish(client,userdata,result):             #create function for callback
+    global publishing
+    publishing = False
+    print("data published \n")
+    pass
+
 def create_q_model():
     # Network defined by the Deepmind paper
-    inputs = layers.Input(shape=(28, 28, 1,))
-
-    layer1 = layers.Conv2D(32, kernel_size=(3, 3), activation="relu")(inputs)
-    layer2 = layers.MaxPooling2D(pool_size=(2, 2))(layer1)
-    layer3 = layers.Conv2D(64, kernel_size=(3, 3), activation="relu")(layer2)
-    layer4 = layers.MaxPooling2D(pool_size=(2, 2))(layer3)
-    layer5 = layers.Flatten()(layer4)
+    inputs = layers.Input(shape=(256, 63, 1,))
 
     # Convolutions
-    # layer1 = layers.Conv2D(32, 8, strides=4, activation="relu")(inputs)
-    # layer2 = layers.Conv2D(64, 4, strides=2, activation="relu")(layer1)
-    # layer3 = layers.Conv2D(64, 3, strides=1, activation="relu")(layer2)
-    #
-    # layer4 = layers.Flatten()(layer3)
-    #
-    # layer5 = layers.Dense(512, activation="relu")(layer4)
-    classification = layers.Dense(n_outputs, activation="linear")(layer5)
+    layer1 = layers.Conv2D(32, 8, strides=4, activation="relu")(inputs)
+    layer2 = layers.Conv2D(64, 4, strides=2, activation="relu")(layer1)
+    layer3 = layers.Conv2D(64, 3, strides=1, activation="relu")(layer2)
+
+    layer4 = layers.Flatten()(layer3)
+
+    layer5 = layers.Dense(512, activation="relu")(layer4)
+    # layer1 = layers.Conv2D(4, kernel_size=(5, 5), activation="relu")(inputs)
+    # layer2 = layers.AveragePooling2D(pool_size=(2, 2))(layer1)
+    # layer3 = layers.Conv2D(8, kernel_size=(5, 5), activation="relu")(layer2)
+    # layer4 = layers.AveragePooling2D(pool_size=(2, 2))(layer3)
+    # layer5 = layers.Flatten()(layer4)
+    classification = layers.Dense(n_outputs, activation="softmax")(layer5)
 
     return keras.Model(inputs=inputs, outputs=classification)
 
@@ -84,7 +91,9 @@ def PS_callback(client, userdata, message):
     global counter
     global active_check
     global training_end_signal
-    st = json.loads(message.payload)
+    global publishing
+    print("received")
+    st = pickle.loads(message.payload)
     detObj = {}
     update_factor = 0.99
 
@@ -98,8 +107,8 @@ def PS_callback(client, userdata, message):
         if not active_check[st['device']]:
             counter += 1
             active_check[st['device']] = True
-        local_models[st['device']] = st['model']
-
+        for k in range(layers):
+            local_models.append(np.asarray(st['model_layer{}'.format(k)]))
 
     if counter == active or training_end_signal:
         # start averaging
@@ -116,23 +125,23 @@ def PS_callback(client, userdata, message):
         local_models = [] # reset
     #local_rounds = st['local_rounds']
 
-    detObj['global_model'] = model_global.get_weights()
+    model_list = model_global.get_weights()
+    for k in range(layers):
+        detObj['global_model_layer{}'.format(k)] = model_list[k].tolist()
     detObj['global_epoch'] = epoch_count
 
-    print('Global epoch count {}', format(epoch_count))
+    print('Global epoch count {}'.format(epoch_count))
 
     # detObj['model'] = model.get_weights()
     # detObj['device'] = device_index
     # detObj['framecount'] = frame_count
     # detObj['epoch'] = epoch_count
     # detObj['training_end'] = training_end
+    # while publishing:
+    #     pause(2)
+    # publishing = True
+    mqttc.publish(args.topic_PS, pickle.dumps(detObj), retain=True)
 
-    while mqttc.publish(args.topic_PS, json.dumps(detObj)):
-        pause(2)
-        print("error sending")
-
-    if training_end:
-        mqttc.stop_loop()
     # try:
     #     mqttc.publish(args.topic_post_model, json.dumps(detObj))
     # except:
@@ -146,10 +155,11 @@ if __name__ == "__main__":
     MQTT_broker = args.MQTT
     client_py = "PS"
     mqttc = mqtt.Client(client_id=client_py, clean_session=True)
-    mqttc.connect(host=MQTT_broker, port=1885, keepalive=60)
-    PS_mqtt_topic = args.PS_topic
+    mqttc.connect(host=MQTT_broker, port=1885, keepalive=20)
+    PS_mqtt_topic = args.topic_PS
+    # mqttc.on_publish = on_publish
     device_topic = args.topic_post_model
-    mqttc.subscribe(device_topic, qos=0)
+    mqttc.subscribe(device_topic, qos=1)
     mqttc.message_callback_add(device_topic, PS_callback)
 
     checkpointpath1 = 'results/model_global.h5'
@@ -182,7 +192,7 @@ if __name__ == "__main__":
 
     del model_weights
 
-    # start PS and wait
+    print("start PS")
     mqttc.loop_forever()
 
 
