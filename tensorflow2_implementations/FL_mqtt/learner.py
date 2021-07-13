@@ -39,7 +39,7 @@ parser.add_argument('-eps', default=1, help="sets the mixing parameters for mode
 parser.add_argument("-local_rounds", default=4, help="number of local rounds", type=int)
 parser.add_argument('-target', default=0.1, help="sets the target loss to stop federation", type=float)
 parser.add_argument('-N', default=1, help="sets the max. number of neighbors per device per round in CFA", type=int)
-parser.add_argument('-samp', default=15, help="sets the number samples per device", type=int)
+parser.add_argument('-samp', default=150, help="sets the number samples per device", type=int)
 parser.add_argument('-batches', default=3, help="sets the number of batches per learning round", type=int)
 parser.add_argument('-batch_size', default=5, help="sets the batch size per learning round", type=int)
 parser.add_argument('-input_data', default='data_mimoradar/data_mmwave_900.mat', help="sets the path to the federated dataset", type=str)
@@ -104,18 +104,18 @@ def create_q_model():
     inputs = layers.Input(shape=(256, 63, 1,))
 
     # Convolutions
-    layer1 = layers.Conv2D(32, 8, strides=4, activation="relu")(inputs)
-    layer2 = layers.Conv2D(64, 4, strides=2, activation="relu")(layer1)
-    layer3 = layers.Conv2D(64, 3, strides=1, activation="relu")(layer2)
-
-    layer4 = layers.Flatten()(layer3)
-
-    layer5 = layers.Dense(512, activation="relu")(layer4)
-    # layer1 = layers.Conv2D(4, kernel_size=(5, 5), activation="relu")(inputs)
-    # layer2 = layers.AveragePooling2D(pool_size=(2, 2))(layer1)
-    # layer3 = layers.Conv2D(8, kernel_size=(5, 5), activation="relu")(layer2)
-    # layer4 = layers.AveragePooling2D(pool_size=(2, 2))(layer3)
-    # layer5 = layers.Flatten()(layer4)
+    # layer1 = layers.Conv2D(32, 8, strides=4, activation="relu")(inputs)
+    # layer2 = layers.Conv2D(64, 4, strides=2, activation="relu")(layer1)
+    # layer3 = layers.Conv2D(64, 3, strides=1, activation="relu")(layer2)
+    #
+    # layer4 = layers.Flatten()(layer3)
+    #
+    # layer5 = layers.Dense(512, activation="relu")(layer4)
+    layer1 = layers.Conv2D(4, kernel_size=(5, 5), activation="relu")(inputs)
+    layer2 = layers.AveragePooling2D(pool_size=(2, 2))(layer1)
+    layer3 = layers.Conv2D(8, kernel_size=(5, 5), activation="relu")(layer2)
+    layer4 = layers.AveragePooling2D(pool_size=(2, 2))(layer3)
+    layer5 = layers.Flatten()(layer4)
     classification = layers.Dense(n_outputs, activation="softmax")(layer5)
 
     return keras.Model(inputs=inputs, outputs=classification)
@@ -135,12 +135,14 @@ def PS_callback(client, userdata, message):
     detObj = {}
     local_round = 0
     rx_global_model = []
+
     for k in range(layers):
         rx_global_model.append(np.asarray(st['global_model_layer{}'.format(k)]))
     global_epoch = st['global_epoch']
     # model_global = st['global_model']
-    model.set_weights(rx_global_model)
-
+    aa = model.get_weights()
+    model.set_weights(rx_global_model) # replace with global model
+    bb = model.get_weights()
     # ps
     # st['local_rounds']
     # st['epoch_global']
@@ -166,7 +168,7 @@ def PS_callback(client, userdata, message):
         print("Device {} epoch count {}, validation loss {:.2f}".format(device_index, epoch_count,
                                                                             avg_cost))
         # mean loss for last 5 epochs
-        running_loss = np.mean(epoch_loss_history[-5:])
+        running_loss = np.mean(epoch_loss_history[-1:])
 
         if running_loss < target_loss or training_signal:  # Condition to consider the task solved
             print("Solved for device {} at epoch {} with average loss {:.2f} !".format(device_index, epoch_count,
@@ -187,6 +189,7 @@ def PS_callback(client, userdata, message):
             sio.savemat(
                 "CFA_device_{}_samples_{}_batches_{}_size{}.mat".format(
                     device_index, training_set_per_device, number_of_batches, batch_size), dict_1)
+
 
         if epoch_count > max_epochs:  # stop simulation
             print("Unsolved for device {} at epoch {}!".format(device_index, epoch_count))
@@ -254,11 +257,12 @@ def PS_callback(client, userdata, message):
     # while publishing:
     #     pause(2)
     # publishing = True
-    mqttc.publish(args.topic_post_model, pickle.dumps(detObj), retain=True)
+    mqttc.publish(args.topic_post_model, pickle.dumps(detObj), retain=False)
 
 
     if training_end:
-        mqttc.stop_loop()
+        sys.exit()
+    #     mqttc.stop_loop()
     # try:
     #     mqttc.publish(args.topic_post_model, json.dumps(detObj))
     # except:
@@ -421,7 +425,7 @@ if __name__ == "__main__":
     # while publishing:
     #     pause(2)
     # publishing = True
-    mqttc.publish(args.topic_post_model, pickle.dumps(detObj), retain=True)
+    mqttc.publish(args.topic_post_model, pickle.dumps(detObj), retain=False)
     # while mqttc.publish(args.topic_post_model, json.dumps(detObj)):
     #     pause(2)
     #     print("error sending")

@@ -39,7 +39,7 @@ active = args.active_devices
 # Configuration paramaters for the whole setup
 publishing = False
 seed = 42
-local_models = []
+local_models_storage = []
 detObj = {}
 counter = 0
 n_outputs = 6
@@ -66,18 +66,18 @@ def create_q_model():
     inputs = layers.Input(shape=(256, 63, 1,))
 
     # Convolutions
-    layer1 = layers.Conv2D(32, 8, strides=4, activation="relu")(inputs)
-    layer2 = layers.Conv2D(64, 4, strides=2, activation="relu")(layer1)
-    layer3 = layers.Conv2D(64, 3, strides=1, activation="relu")(layer2)
-
-    layer4 = layers.Flatten()(layer3)
-
-    layer5 = layers.Dense(512, activation="relu")(layer4)
-    # layer1 = layers.Conv2D(4, kernel_size=(5, 5), activation="relu")(inputs)
-    # layer2 = layers.AveragePooling2D(pool_size=(2, 2))(layer1)
-    # layer3 = layers.Conv2D(8, kernel_size=(5, 5), activation="relu")(layer2)
-    # layer4 = layers.AveragePooling2D(pool_size=(2, 2))(layer3)
-    # layer5 = layers.Flatten()(layer4)
+    # layer1 = layers.Conv2D(32, 8, strides=4, activation="relu")(inputs)
+    # layer2 = layers.Conv2D(64, 4, strides=2, activation="relu")(layer1)
+    # layer3 = layers.Conv2D(64, 3, strides=1, activation="relu")(layer2)
+    #
+    # layer4 = layers.Flatten()(layer3)
+    #
+    # layer5 = layers.Dense(512, activation="relu")(layer4)
+    layer1 = layers.Conv2D(4, kernel_size=(5, 5), activation="relu")(inputs)
+    layer2 = layers.AveragePooling2D(pool_size=(2, 2))(layer1)
+    layer3 = layers.Conv2D(8, kernel_size=(5, 5), activation="relu")(layer2)
+    layer4 = layers.AveragePooling2D(pool_size=(2, 2))(layer3)
+    layer5 = layers.Flatten()(layer4)
     classification = layers.Dense(n_outputs, activation="softmax")(layer5)
 
     return keras.Model(inputs=inputs, outputs=classification)
@@ -87,7 +87,7 @@ def PS_callback(client, userdata, message):
     global mqttc
     global model_global, layers
     global epoch_count, frame_count
-    global local_models
+    global local_models_storage
     global counter
     global active_check
     global training_end_signal
@@ -95,12 +95,21 @@ def PS_callback(client, userdata, message):
     print("received")
     st = pickle.loads(message.payload)
     detObj = {}
-    update_factor = 0.99
+    local_models = []
+    update_factor = 1
+
+    # for k in range(layers):
+    #     local_models.append(np.asarray(st['model_layer{}'.format(k)]))
+    # aa = model_global.get_weights()
+    # model_global.set_weights(local_models)
+    # epoch_count += 1
 
     if st['training_end']:
         training_end_signal = True
-        # transfer learning
-        model_global.set_weights(st['model'])
+        for k in range(layers):
+            local_models.append(np.asarray(st['model_layer{}'.format(k)]))
+        # aa = model_global.get_weights()
+        model_global.set_weights(local_models)
 
     if scheduling_tx[st['device'], epoch_count] == 1 and not training_end_signal:
         # wait for all models
@@ -109,26 +118,29 @@ def PS_callback(client, userdata, message):
             active_check[st['device']] = True
         for k in range(layers):
             local_models.append(np.asarray(st['model_layer{}'.format(k)]))
+        local_models_storage.append(local_models)
 
     if counter == active or training_end_signal:
         # start averaging
         active_check = np.zeros(active, dtype=bool) # reset
         counter = 0
         epoch_count += 1
-        if training_end_signal:
+        if not training_end_signal:
             model_parameters = model_global.get_weights()
+            m = model_parameters
             for q in range(layers):
                 for k in range(active):
                     model_parameters[q] = model_parameters[q] + update_factor * (
-                            local_models[k][q] - model_parameters[q]) / active
+                            local_models_storage[k][q] - model_parameters[q]) / active
             model_global.set_weights(model_parameters)
-        local_models = [] # reset
+        local_models_storage = [] # reset
     #local_rounds = st['local_rounds']
 
     model_list = model_global.get_weights()
     for k in range(layers):
         detObj['global_model_layer{}'.format(k)] = model_list[k].tolist()
     detObj['global_epoch'] = epoch_count
+    detObj['training_end'] = training_end_signal
 
     print('Global epoch count {}'.format(epoch_count))
 
@@ -140,7 +152,8 @@ def PS_callback(client, userdata, message):
     # while publishing:
     #     pause(2)
     # publishing = True
-    mqttc.publish(args.topic_PS, pickle.dumps(detObj), retain=True)
+    # mqttc.publish(args.topic_PS, pickle.dumps(detObj), retain=True)
+    mqttc.publish(args.topic_PS, pickle.dumps(detObj), retain=False)
 
     # try:
     #     mqttc.publish(args.topic_post_model, json.dumps(detObj))
