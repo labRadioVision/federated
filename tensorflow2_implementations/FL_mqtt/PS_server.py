@@ -29,8 +29,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-MQTT", default="192.168.1.7", help="mqtt broker ex 192.168.1.3", type=str)
 parser.add_argument("-topic_PS", default="PS", help="FL with PS topic", type=str)
 parser.add_argument("-topic_post_model", default="post model", help="post models", type=str)
-parser.add_argument('-devices', default=1, help="sets the number of total devices", type=int)
-parser.add_argument('-active_devices', default=1, help="sets the number of active devices", type=int)
+parser.add_argument('-devices', default=2, help="sets the number of total devices", type=int)
+parser.add_argument('-active_devices', default=2, help="sets the number of active devices", type=int)
 args = parser.parse_args()
 
 max_epochs = 500
@@ -134,32 +134,17 @@ def PS_callback(client, userdata, message):
                             local_models_storage[k][q] - model_parameters[q]) / active
             model_global.set_weights(model_parameters)
         local_models_storage = [] # reset
-    #local_rounds = st['local_rounds']
+        #local_rounds = st['local_rounds']
 
-    model_list = model_global.get_weights()
-    for k in range(layers):
-        detObj['global_model_layer{}'.format(k)] = model_list[k].tolist()
-    detObj['global_epoch'] = epoch_count
-    detObj['training_end'] = training_end_signal
+        model_list = model_global.get_weights()
+        for k in range(layers):
+            detObj['global_model_layer{}'.format(k)] = model_list[k].tolist()
+        detObj['global_epoch'] = epoch_count
+        detObj['training_end'] = training_end_signal
 
-    print('Global epoch count {}'.format(epoch_count))
+        print('Global epoch count {}'.format(epoch_count))
 
-    # detObj['model'] = model.get_weights()
-    # detObj['device'] = device_index
-    # detObj['framecount'] = frame_count
-    # detObj['epoch'] = epoch_count
-    # detObj['training_end'] = training_end
-    # while publishing:
-    #     pause(2)
-    # publishing = True
-    # mqttc.publish(args.topic_PS, pickle.dumps(detObj), retain=True)
-    mqttc.publish(args.topic_PS, pickle.dumps(detObj), retain=False)
-
-    # try:
-    #     mqttc.publish(args.topic_post_model, json.dumps(detObj))
-    # except:
-    #     print("error sending")
-    #     mqttc.disconnect()
+        mqttc.publish(args.topic_PS, pickle.dumps(detObj), retain=False)
 
 # -------------------------    MAIN   -----------------------------------------
 
