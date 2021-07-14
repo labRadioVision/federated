@@ -39,7 +39,7 @@ parser.add_argument('-eps', default=1, help="sets the mixing parameters for mode
 parser.add_argument("-local_rounds", default=4, help="number of local rounds", type=int)
 parser.add_argument('-target', default=0.1, help="sets the target loss to stop federation", type=float)
 parser.add_argument('-N', default=1, help="sets the max. number of neighbors per device per round in CFA", type=int)
-parser.add_argument('-samp', default=150, help="sets the number samples per device", type=int)
+parser.add_argument('-samp', default=15, help="sets the number samples per device", type=int)
 parser.add_argument('-batches', default=3, help="sets the number of batches per learning round", type=int)
 parser.add_argument('-batch_size', default=5, help="sets the batch size per learning round", type=int)
 parser.add_argument('-input_data', default='data_mimoradar/data_mmwave_900.mat', help="sets the path to the federated dataset", type=str)

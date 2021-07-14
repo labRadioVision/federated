@@ -29,8 +29,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-MQTT", default="192.168.1.7", help="mqtt broker ex 192.168.1.3", type=str)
 parser.add_argument("-topic_PS", default="PS", help="FL with PS topic", type=str)
 parser.add_argument("-topic_post_model", default="post model", help="post models", type=str)
-parser.add_argument('-devices', default=1, help="sets the number of total devices", type=int)
-parser.add_argument('-active_devices', default=1, help="sets the number of active devices", type=int)
+parser.add_argument('-devices', default=2, help="sets the number of total devices", type=int)
+parser.add_argument('-active_devices', default=2, help="sets the number of active devices", type=int)
 args = parser.parse_args()
 
 max_epochs = 500
@@ -39,12 +39,12 @@ active = args.active_devices
 # Configuration paramaters for the whole setup
 publishing = False
 seed = 42
-local_models_storage = []
+local_models_storage = [ [] for _ in range(devices) ]
 detObj = {}
 counter = 0
 n_outputs = 6
 training_end_signal = False
-active_check = np.zeros(active, dtype=bool)
+active_check = np.zeros(devices, dtype=bool)
 scheduling_tx = np.zeros((devices, max_epochs*2), dtype=int)
 indexes_tx = np.zeros((active, max_epochs*2), dtype=int)
 for k in range(max_epochs*2):
@@ -119,26 +119,25 @@ def PS_callback(client, userdata, message):
             active_check[st['device']] = True
         for k in range(layers):
             local_models.append(np.asarray(st['model_layer{}'.format(k)]))
-        local_models_storage.append(local_models)
+        local_models_storage[st['device']] = local_models # replacing with the new model
 
     #print(counter)
     #print(active_check)
     if counter == active or training_end_signal:
         # start averaging
-        active_check = np.zeros(active, dtype=bool) # reset
+        active_check = np.zeros(devices, dtype=bool) # reset
         counter = 0
-        epoch_count += 1
         if not training_end_signal:
             model_parameters = model_global.get_weights()
-            m = model_parameters
+            # m = model_parameters
+            active_device_indexes = indexes_tx[:, epoch_count]
             for q in range(layers):
                 for k in range(active):
                     model_parameters[q] = model_parameters[q] + update_factor * (
-                            local_models_storage[k][q] - model_parameters[q]) / active
+                            local_models_storage[active_device_indexes[k]][q] - model_parameters[q]) / active
             model_global.set_weights(model_parameters)
-        local_models_storage = [] # reset
-        #local_rounds = st['local_rounds']
-
+        local_models_storage = [ [] for _ in range(devices) ] # reset
+        epoch_count += 1
         model_list = model_global.get_weights()
         for k in range(layers):
             detObj['global_model_layer{}'.format(k)] = model_list[k].tolist()
