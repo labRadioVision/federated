@@ -29,8 +29,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-MQTT", default="192.168.1.7", help="mqtt broker ex 192.168.1.3", type=str)
 parser.add_argument("-topic_PS", default="PS", help="FL with PS topic", type=str)
 parser.add_argument("-topic_post_model", default="post model", help="post models", type=str)
-parser.add_argument('-devices', default=2, help="sets the number of total devices", type=int)
-parser.add_argument('-active_devices', default=2, help="sets the number of active devices", type=int)
+parser.add_argument('-devices', default=1, help="sets the number of total devices", type=int)
+parser.add_argument('-active_devices', default=1, help="sets the number of active devices", type=int)
 args = parser.parse_args()
 
 max_epochs = 500
@@ -110,7 +110,8 @@ def PS_callback(client, userdata, message):
             local_models.append(np.asarray(st['model_layer{}'.format(k)]))
         # aa = model_global.get_weights()
         model_global.set_weights(local_models)
-
+    # print(scheduling_tx[st['device'], epoch_count])
+    # print(active_check)
     if scheduling_tx[st['device'], epoch_count] == 1 and not training_end_signal:
         # wait for all models
         if not active_check[st['device']]:
@@ -120,6 +121,8 @@ def PS_callback(client, userdata, message):
             local_models.append(np.asarray(st['model_layer{}'.format(k)]))
         local_models_storage.append(local_models)
 
+    #print(counter)
+    #print(active_check)
     if counter == active or training_end_signal:
         # start averaging
         active_check = np.zeros(active, dtype=bool) # reset
