@@ -141,9 +141,9 @@ def PS_callback(client, userdata, message):
         rx_global_model.append(np.asarray(st['global_model_layer{}'.format(k)]))
     global_epoch = st['global_epoch']
     # model_global = st['global_model']
-    aa = model.get_weights()
+    #aa = model.get_weights()
     model.set_weights(rx_global_model) # replace with global model
-    bb = model.get_weights()
+    #bb = model.get_weights()
     # ps
     # st['local_rounds']
     # st['epoch_global']
