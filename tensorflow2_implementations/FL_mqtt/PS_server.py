@@ -26,11 +26,11 @@ import datetime
 
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
-parser.add_argument("-MQTT", default="192.168.1.7", help="mqtt broker ex 192.168.1.3", type=str)
+parser.add_argument("-MQTT", default="10.79.5.62", help="mqtt broker ex 192.168.1.3", type=str)
 parser.add_argument("-topic_PS", default="PS", help="FL with PS topic", type=str)
 parser.add_argument("-topic_post_model", default="post model", help="post models", type=str)
-parser.add_argument('-devices', default=2, help="sets the number of total devices", type=int)
-parser.add_argument('-active_devices', default=2, help="sets the number of active devices", type=int)
+parser.add_argument('-devices', default=5, help="sets the number of total devices", type=int)
+parser.add_argument('-active_devices', default=3, help="sets the number of active devices", type=int)
 args = parser.parse_args()
 
 max_epochs = 500

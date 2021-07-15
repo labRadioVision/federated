@@ -1,8 +1,8 @@
 from __future__ import division
-from DataSets import MnistData
+#from DataSets import MnistData
 from DataSets import RadarData
 from DataSets_tasks import RadarData_tasks
-from consensus.consensus_v3 import CFA_process
+#from consensus.consensus_v3 import CFA_process
 # best use with PS active
 # from ReplayMemory import ReplayMemory
 import os
@@ -14,7 +14,7 @@ from tensorflow.keras import models
 import glob
 import scipy.io as sio
 import math
-from matplotlib.pyplot import pause
+#from matplotlib.pyplot import pause
 import time
 import numpy as np
 # import pyqtgraph as pg
@@ -29,7 +29,7 @@ import datetime
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, 0 to start from the beginning", type=float)
-parser.add_argument("-MQTT", default="192.168.1.7", help="mqtt broker ex 192.168.1.3", type=str)
+parser.add_argument("-MQTT", default="10.79.5.62", help="mqtt broker ex 192.168.1.3", type=str)
 parser.add_argument("-topic_PS", default="PS", help="FL with PS topic", type=str)
 parser.add_argument("-topic_post_model", default="post model", help="post models", type=str)
 parser.add_argument("-topic_consensus", default="consensus", help="Consensus driven FL", type=str)
@@ -44,6 +44,7 @@ parser.add_argument('-batches', default=3, help="sets the number of batches per 
 parser.add_argument('-batch_size', default=5, help="sets the batch size per learning round", type=int)
 parser.add_argument('-input_data', default='data_mimoradar/data_mmwave_900.mat', help="sets the path to the federated dataset", type=str)
 parser.add_argument('-devices', default=1, help="sets the tot number of devices", type=int)
+parser.add_argument('-run', default=0, help="sets the tot number of devices", type=int)
 parser.add_argument('-noniid_assignment', default=0, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
 args = parser.parse_args()
 
@@ -184,8 +185,8 @@ def PS_callback(client, userdata, message):
                       "batch_size": batch_size, "samples": training_set_per_device}
 
             sio.savemat(
-                "results/matlab/Device_{}_samples_{}_batches_{}_size{}.mat".format(
-                    device_index, training_set_per_device, number_of_batches, batch_size), dict_1)
+                "results/matlab/Device_{}_samples_{}_batches_{}_size{}_run{}.mat".format(
+                    device_index, training_set_per_device, number_of_batches, batch_size, args.run), dict_1)
             sio.savemat(
                 "CFA_device_{}_samples_{}_batches_{}_size{}.mat".format(
                     device_index, training_set_per_device, number_of_batches, batch_size), dict_1)
@@ -205,8 +206,8 @@ def PS_callback(client, userdata, message):
                       "batch_size": batch_size, "samples": training_set_per_device}
 
             sio.savemat(
-                "results/matlab/Device_{}_samples_{}_batches_{}_size{}.mat".format(
-                    device_index, training_set_per_device, number_of_batches, batch_size), dict_1)
+                "results/matlab/Device_{}_samples_{}_batches_{}_size{}_run{}.mat".format(
+                    device_index, training_set_per_device, number_of_batches, batch_size, args.run), dict_1)
             sio.savemat(
                 "CFA_device_{}_samples_{}_batches_{}_size{}.mat".format(
                     device_index, training_set_per_device, number_of_batches, batch_size), dict_1)
