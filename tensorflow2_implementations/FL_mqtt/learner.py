@@ -212,45 +212,44 @@ def PS_callback(client, userdata, message):
                 "CFA_device_{}_samples_{}_batches_{}_size{}.mat".format(
                     device_index, training_set_per_device, number_of_batches, batch_size), dict_1)
 
-    if training_end:
-        sys.exit()
 
     # local round on global model
-    data_history = []
-    label_history = []
-    while local_round < local_rounds and not training_end:
-        frame_count += 1
-        obs, labels = data_handle.getTrainingData(batch_size)
-        data_batch = preprocess_observation(obs, batch_size)
-        # Save data and labels in the current learning session
-        data_history.append(data_batch)
-        label_history.append(labels)
-        # Local learning update every "number of batches" batches
-        if frame_count % number_of_batches == 0 and not training_signal:
-            epoch_count += 1
-            local_round += 1
-            for i in range(number_of_batches):
-                data_sample = np.array(data_history[i])
-                label_sample = np.array(label_history[i])
+    if not training_end:
+        data_history = []
+        label_history = []
+        while local_round < local_rounds and not training_end:
+            frame_count += 1
+            obs, labels = data_handle.getTrainingData(batch_size)
+            data_batch = preprocess_observation(obs, batch_size)
+            # Save data and labels in the current learning session
+            data_history.append(data_batch)
+            label_history.append(labels)
+            # Local learning update every "number of batches" batches
+            if frame_count % number_of_batches == 0 and not training_signal:
+                epoch_count += 1
+                local_round += 1
+                for i in range(number_of_batches):
+                    data_sample = np.array(data_history[i])
+                    label_sample = np.array(label_history[i])
 
-                # Create a mask to calculate loss
-                masks = tf.one_hot(label_sample, n_outputs)
+                    # Create a mask to calculate loss
+                    masks = tf.one_hot(label_sample, n_outputs)
 
-                with tf.GradientTape() as tape:
-                    # Train the model on data samples
-                    classes = model(data_sample, training=False)
-                    # Apply the masks
-                    # Calculate loss
-                    loss = loss_function(masks, classes)
+                    with tf.GradientTape() as tape:
+                        # Train the model on data samples
+                        classes = model(data_sample, training=False)
+                        # Apply the masks
+                        # Calculate loss
+                        loss = loss_function(masks, classes)
 
-                # Backpropagation
-                grads = tape.gradient(loss, model.trainable_variables)
-                optimizer.apply_gradients(zip(grads, model.trainable_variables))
+                    # Backpropagation
+                    grads = tape.gradient(loss, model.trainable_variables)
+                    optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
-            del data_history
-            del label_history
-            data_history = []
-            label_history = []
+                del data_history
+                del label_history
+                data_history = []
+                label_history = []
 
     model.save(checkpointpath1, include_optimizer=True, save_format='h5')
     # model_target.save(checkpointpath2, include_optimizer=True, save_format='h5')
@@ -270,6 +269,8 @@ def PS_callback(client, userdata, message):
     # publishing = True
     mqttc.publish(args.topic_post_model, pickle.dumps(detObj), retain=False)
 
+    if training_end:
+        sys.exit()
 
     #     mqttc.stop_loop()
     # try:
