@@ -42,7 +42,7 @@ parser.add_argument('-random_data_distribution', default=0, help=" set 0 for fix
 parser.add_argument('-batches', default=5, help="sets the number of batches per learning round", type=int)
 parser.add_argument('-batch_size', default=100, help="sets the batch size per learning round", type=int)
 parser.add_argument('-graph', default=6, help="sets the input graph: 0 for default graph, >0 uses the input graph in vGraph.mat, and choose one graph from the available adjacency matrices", type=int)
-parser.add_argument('-modelselection', default=0, help="sets the model: 0 for lenet-1", type=int)
+parser.add_argument('-modelselection', default=1, help="sets the model: 0 for lenet-1", type=int)
 args = parser.parse_args()
 
 devices = args.K  # NUMBER OF DEVICES
@@ -177,6 +177,15 @@ def create_q_model():
         classification = layers.Dense(n_outputs, activation=tf.keras.activations.softmax)(layer51)
 
     elif condition == 1:
+        layer1 = layers.Conv2D(4, kernel_size=(5, 5), activation="relu")(inputs)
+        layer2 = layers.AveragePooling2D(pool_size=(2, 2))(layer1)
+        layer3 = layers.Conv2D(8, kernel_size=(5, 5), activation="relu")(layer2)
+        layer4 = layers.AveragePooling2D(pool_size=(2, 2))(layer3)
+        layer5 = layers.Flatten()(layer4)
+        layer6 = layers.Dense(128, activation="relu")(layer5)
+        classification = layers.Dense(n_outputs, activation="softmax")(layer6)
+
+    elif condition == 2:
         # VGG 2 BLOCK
         layer1 = layers.Conv2D(32, kernel_size=(3, 3), activation="relu", kernel_initializer='he_uniform',
                                padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.01))(

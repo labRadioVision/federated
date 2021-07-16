@@ -28,7 +28,7 @@ import datetime
 
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
-parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, 0 to start from the beginning", type=float)
+parser.add_argument('-resume', default=1, help="set 1 to resume from a previous simulation, or retrain on an update dataset (continual learning), 0 to start from the beginning", type=float)
 parser.add_argument("-MQTT", default="10.79.5.62", help="mqtt broker ex 192.168.1.3", type=str)
 parser.add_argument("-topic_PS", default="PS", help="FL with PS topic", type=str)
 parser.add_argument("-topic_post_model", default="post model", help="post models", type=str)
@@ -175,11 +175,11 @@ def PS_callback(client, userdata, message):
             print("Solved for device {} at epoch {} with average loss {:.2f} !".format(device_index, epoch_count,
                                                                                        running_loss))
             training_end = True
-            model_weights = np.asarray(model.get_weights())
+            #model_weights = np.asarray(model.get_weights())
             model.save(checkpointpath1, include_optimizer=True, save_format='h5')
             np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
                      training_end=training_end, epoch_count=epoch_count, loss=running_loss)
-            np.save(outfile_models, model_weights)
+            #np.save(outfile_models, model_weights)
 
             dict_1 = {"epoch_loss_history": epoch_loss_history, "batches": number_of_batches,
                       "batch_size": batch_size, "samples": training_set_per_device}
@@ -195,12 +195,12 @@ def PS_callback(client, userdata, message):
         if epoch_count > max_epochs:  # stop simulation
             print("Unsolved for device {} at epoch {}!".format(device_index, epoch_count))
             training_end = True
-            model_weights = np.asarray(model.get_weights())
+            #model_weights = np.asarray(model.get_weights())
             model.save(checkpointpath1, include_optimizer=True, save_format='h5')
             # model_target.save(checkpointpath2, include_optimizer=True, save_format='h5')
             np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
                      training_end=training_end, epoch_count=epoch_count, loss=running_loss)
-            np.save(outfile_models, model_weights)
+            #np.save(outfile_models, model_weights)
 
             dict_1 = {"epoch_loss_history": epoch_loss_history, "batches": number_of_batches,
                       "batch_size": batch_size, "samples": training_set_per_device}
@@ -211,6 +211,11 @@ def PS_callback(client, userdata, message):
             sio.savemat(
                 "CFA_device_{}_samples_{}_batches_{}_size{}.mat".format(
                     device_index, training_set_per_device, number_of_batches, batch_size), dict_1)
+
+    if training_end:
+        sys.exit()
+
+    # local round on global model
     data_history = []
     label_history = []
     while local_round < local_rounds and not training_end:
@@ -247,6 +252,11 @@ def PS_callback(client, userdata, message):
             data_history = []
             label_history = []
 
+    model.save(checkpointpath1, include_optimizer=True, save_format='h5')
+    # model_target.save(checkpointpath2, include_optimizer=True, save_format='h5')
+    np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
+             training_end=training_end, epoch_count=epoch_count)
+
     model_list = model.get_weights()
     for k in range(layers):
         detObj['model_layer{}'.format(k)] = model_list[k].tolist()
@@ -261,8 +271,6 @@ def PS_callback(client, userdata, message):
     mqttc.publish(args.topic_post_model, pickle.dumps(detObj), retain=False)
 
 
-    if training_end:
-        sys.exit()
     #     mqttc.stop_loop()
     # try:
     #     mqttc.publish(args.topic_post_model, json.dumps(detObj))
@@ -333,22 +341,19 @@ if __name__ == "__main__":
 
     # check for backup variables on start
     if os.path.isfile(checkpointpath1):
-        train_start = False
-
         # backup the model and the model target
         model = models.load_model(checkpointpath1)
         data_history = []
         label_history = []
-        local_model_parameters = np.load(outfile_models, allow_pickle=True)
-        model.set_weights(local_model_parameters.tolist())
+        #local_model_parameters = np.load(outfile_models, allow_pickle=True)
+        #model.set_weights(local_model_parameters.tolist())
 
         dump_vars = np.load(outfile, allow_pickle=True)
         frame_count = dump_vars['frame_count']
         epoch_loss_history = dump_vars['epoch_loss_history'].tolist()
         running_loss = np.mean(epoch_loss_history[-5:])
-        epoch_count = dump_vars['epoch_count']
+        epoch_count = 0 # retraining
     else:
-        train_start = True
         model = create_q_model()
         data_history = []
         label_history = []
@@ -414,6 +419,12 @@ if __name__ == "__main__":
             del label_history
             data_history = []
             label_history = []
+
+        #model_weights = np.asarray(model.get_weights())
+        model.save(checkpointpath1, include_optimizer=True, save_format='h5')
+        np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
+                 training_end=training_end, epoch_count=epoch_count, loss=running_loss)
+        #np.save(outfile_models, model_weights)
 
     model_list = model.get_weights()
     for k in range(layers):

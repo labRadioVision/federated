@@ -26,7 +26,7 @@ import time
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, 0 to start from the beginning", type=float)
-parser.add_argument('-PS', default=1, help="set 1 to enable PS server and FedAvg, set 0 to disable PS", type=float)
+parser.add_argument('-PS', default=0, help="set 1 to enable PS server and FedAvg, set 0 to disable PS", type=float)
 parser.add_argument('-consensus', default=0, help="set 1 to enable consensus, set 0 to disable", type=float)
 parser.add_argument('-mu', default=0.001, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-eps', default=1, help="sets the mixing parameters for model averaging (CFA)", type=float)
@@ -156,6 +156,16 @@ def create_q_model():
         # classification = layers.Dense(n_outputs, activation=tf.keras.activations.softmax)(layer51)
 
     elif condition == 1:
+        layer1 = layers.Conv2D(4, kernel_size=(5, 5), activation="relu")(inputs)
+        layer2 = layers.AveragePooling2D(pool_size=(2, 2))(layer1)
+        layer3 = layers.Conv2D(8, kernel_size=(5, 5), activation="relu")(layer2)
+        layer4 = layers.AveragePooling2D(pool_size=(2, 2))(layer3)
+        layer5 = layers.Flatten()(layer4)
+        #layer6 = layers.Dense(128, activation="relu")(layer5)
+        #classification = layers.Dense(n_outputs, activation="softmax")(layer6)
+        classification = layers.Dense(n_outputs, activation="softmax")(layer5)
+
+    elif condition == 2:
         # VGG 2 BLOCK
         layer1 = layers.Conv2D(32, kernel_size=(3, 3), activation="relu", kernel_initializer='he_uniform',
                                padding='same', kernel_regularizer=tf.keras.regularizers.l2(0.01))(
@@ -323,7 +333,7 @@ def processData(device_index, start_samples, samples, federated, full_data_size,
             del label_history
             data_history = []
             label_history = []
-
+            aa = model.get_weights()
             model_weights = np.asarray(model.get_weights())
             model.save(checkpointpath1, include_optimizer=True, save_format='h5')
             np.savez(outfile, frame_count=frame_count, epoch_loss_history=epoch_loss_history,
