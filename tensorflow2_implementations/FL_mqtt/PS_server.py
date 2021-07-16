@@ -29,7 +29,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-MQTT", default="10.79.5.62", help="mqtt broker ex 192.168.1.3", type=str)
 parser.add_argument("-topic_PS", default="PS", help="FL with PS topic", type=str)
 parser.add_argument("-topic_post_model", default="post model", help="post models", type=str)
-parser.add_argument('-devices', default=5, help="sets the number of total devices", type=int)
+parser.add_argument('-devices', default=9, help="sets the number of total devices", type=int)
 parser.add_argument('-active_devices', default=3, help="sets the number of active devices", type=int)
 args = parser.parse_args()
 
@@ -144,9 +144,13 @@ def PS_callback(client, userdata, message):
         detObj['global_epoch'] = epoch_count
         detObj['training_end'] = training_end_signal
 
-        print('Global epoch count {}'.format(epoch_count))
-
-        mqttc.publish(args.topic_PS, pickle.dumps(detObj), retain=False)
+        print('Global epoch count {}, check training end: {}'.format(epoch_count, training_end_signal))
+        if training_end_signal:
+            while True:
+                mqttc.publish(args.topic_PS, pickle.dumps(detObj), retain=False)
+                pause(4) # send the final model on every 4 sec
+        else:
+            mqttc.publish(args.topic_PS, pickle.dumps(detObj), retain=False)
 
 # -------------------------    MAIN   -----------------------------------------
 
