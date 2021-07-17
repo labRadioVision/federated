@@ -61,7 +61,6 @@ class RadarData:
         x_train = database['mmwave_data_train']
         y_train = database['label_train']
         # y_train_t = to_categorical(y_train)
-        x_train = (x_train.astype('float32').clip(0)) / 1000  # DATA PREPARATION (NORMALIZATION AND SCALING OF FFT MEASUREMENTS)
 
         if random_data_distribution == 1:
             s_list = random.sample(range(self.validation_train), self.samples)
@@ -69,7 +68,10 @@ class RadarData:
             # s_list = np.arange(self.device_index * self.samples, (self.device_index + 1) * self.samples)
             s_list = np.arange(self.start_samples, self.samples + self.start_samples)
 
-        self.x_train = np.expand_dims(x_train[s_list, :, :], 3) # DATA PARTITION
+        self.x_train = x_train[s_list, :, :]
+        self.x_train = (self.x_train.astype('float32').clip(0)) / 1000  # DATA PREPARATION (NORMALIZATION AND SCALING OF FFT MEASUREMENTS)
+
+        self.x_train = np.expand_dims(self.x_train, 3) # DATA PARTITION
         self.y_train = np.squeeze(y_train[s_list])
         #test data
         database = sio.loadmat('data/data_validation_mmwave_900.mat')

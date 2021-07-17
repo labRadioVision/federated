@@ -19,8 +19,7 @@ class RadarData_tasks:
         x_train = database['mmwave_data_train']
         y_train = database['label_train']
         # y_train_t = to_categorical(y_train)
-        x_train = (x_train.astype('float32').clip(0)) / 1000  # DATA PREPARATION (NORMALIZATION AND SCALING OF FFT MEASUREMENTS)
-
+       
         num_class_per_node = 4
         classes_per_node = random.sample(range(6), num_class_per_node)
         # print(classes_per_node)
@@ -37,8 +36,11 @@ class RadarData_tasks:
 
         # print(vec_list)
         s_list = random.sample(vec_list, self.samples)
+        self.x_train = x_train[s_list, :, :]
+        self.x_train = (self.x_train.astype('float32').clip(
+            0)) / 1000  # DATA PREPARATION (NORMALIZATION AND SCALING OF FFT MEASUREMENTS)
 
-        self.x_train = np.expand_dims(x_train[s_list, :, :], 3) # DATA PARTITION
+        self.x_train = np.expand_dims(self.x_train, 3)  # DATA PARTITION
         self.y_train = np.squeeze(y_train[s_list])
         #test data
         database = sio.loadmat('data/data_validation_mmwave_900.mat')
