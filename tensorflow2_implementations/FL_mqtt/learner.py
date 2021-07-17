@@ -76,7 +76,7 @@ if batch_size > training_set_per_device:
 #max_lag = number_of_batches*2 # consensus max delay 2= 2 epochs max
 
 n_outputs = 6  # 6 classes
-max_epochs = 200
+max_epochs = 800
 
 validation_start = 1 # start validation in epochs
 

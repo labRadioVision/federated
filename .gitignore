@@ -12,3 +12,4 @@ tensorflow2_implementations/CIFAR10_dataset/federated_learning_keras_low_power_P
 tensorflow2_implementations/MNIST_dataset/federated_learning_keras_PS_MNIST.py
 tensorflow2_implementations/MNIST_dataset/federated_learning_keras_PS_MNIST.py
 tensorflow2_implementations/FL_mqtt/.idea/FL_mqtt.iml
+tensorflow2_implementations/FL_mqtt/.idea/.name
