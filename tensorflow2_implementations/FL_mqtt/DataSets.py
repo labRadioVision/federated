@@ -5,29 +5,41 @@ import scipy.io as sio
 import random
 # from tensorflow.keras.utils import to_categorical
 
-class MnistData:
-    def __init__(self, device_index, start_samples, samples, validation_train, random_data_distribution=0):
-        (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data(
-            path='mnist.npz'
-        )
+class RadarData_mqtt:
+    def __init__(self, filepath, device_index, start_samples, samples, validation_train, validation_test):
+        # filepath = 'data_mimoradar/data_mmwave_900.mat'
+        self.filepath = filepath
         self.device_index = device_index
         self.samples = samples
-        self.start_samples = start_samples
-        self.validation_train = 60000
-        self.validation_test = 10000
-        x_train = (x_train.astype('float32').clip(0)) / 255
+        self.start_samples = 0
+        self.validation_train = validation_train
+        self.validation_test = validation_test
+        # train data
+        database = sio.loadmat('data/mmwave_data_train_{}.mat'.format(device_index+1))
+        # database = sio.loadmat('dati_mimoradar/data_mmwave_450.mat')
+        x_train = database['mmwave_data_train_{}'.format(device_index+1)]
+        y_train = database['label_train_{}'.format(device_index+1)]
+        # y_train_t = to_categorical(y_train)
+
         if random_data_distribution == 1:
             s_list = random.sample(range(self.validation_train), self.samples)
         else:
             # s_list = np.arange(self.device_index * self.samples, (self.device_index + 1) * self.samples)
             s_list = np.arange(self.start_samples, self.samples + self.start_samples)
 
-        self.x_train = np.expand_dims(x_train[s_list, :, :], 3) # DATA PARTITION
+        self.x_train = x_train[s_list, :, :]
+        self.x_train = (self.x_train.astype('float32').clip(0)) / 1000  # DATA PREPARATION (NORMALIZATION AND SCALING OF FFT MEASUREMENTS)
+
+        self.x_train = np.expand_dims(self.x_train, 3) # DATA PARTITION
         self.y_train = np.squeeze(y_train[s_list])
-        x_test = (x_test.astype('float32').clip(0)) / 255
+        #test data
+        database = sio.loadmat('data/mmwave_data_test.mat')
+        x_test = database['mmwave_data_test']
+        y_test = database['label_test']
         self.y_test = np.squeeze(y_test[:self.validation_test])
+        x_test = (x_test.astype('float32').clip(0)) / 1000
         self.x_test = np.expand_dims(x_test[:self.validation_test, :, :], 3)
-        del x_test, x_train, y_test, y_train
+        # self.y_test = to_categorical(y_test)
 
     def getTrainingData(self, batch_size):
         s_list = random.sample(range(self.samples), batch_size)

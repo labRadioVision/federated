@@ -27,7 +27,7 @@ import time
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, 0 to start from the beginning", type=float)
-parser.add_argument('-PS', default=0, help="set 1 to enable PS server and FedAvg, set 0 to disable PS", type=float)
+parser.add_argument('-PS', default=1, help="set 1 to enable PS server and FedAvg, set 0 to disable PS", type=float)
 parser.add_argument('-consensus', default=0, help="set 1 to enable consensus, set 0 to disable", type=float)
 parser.add_argument('-mu', default=0.00025, help="sets the learning rate for all setups", type=float)
 parser.add_argument('-eps', default=1, help="sets the mixing parameters for model averaging (CFA)", type=float)
