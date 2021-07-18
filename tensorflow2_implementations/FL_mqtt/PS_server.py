@@ -97,6 +97,8 @@ def PS_callback(client, userdata, message):
     detObj = {}
     local_models = []
     update_factor = 1
+    if active == 1:
+        update_factor = 0.5
 
     # for k in range(layers):
     #     local_models.append(np.asarray(st['model_layer{}'.format(k)]))
