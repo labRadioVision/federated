@@ -343,16 +343,20 @@ if __name__ == "__main__":
     if os.path.isfile(checkpointpath1):
         if args.resume == 2: #continual learning
             checkpointpath2 = 'results/matlab/model{}.h5'.format(device_index)
+            outfile2 = 'results/matlab/dump_train_variables{}.npz'.format(device_index)
             # backup the model and the model target
             model = models.load_model(checkpointpath2)
+            dump_vars = np.load(outfile2, allow_pickle=True)
         else:
             model = models.load_model(checkpointpath1)
+            dump_vars = np.load(outfile, allow_pickle=True)
+
         data_history = []
         label_history = []
         #local_model_parameters = np.load(outfile_models, allow_pickle=True)
         #model.set_weights(local_model_parameters.tolist())
 
-        dump_vars = np.load(outfile, allow_pickle=True)
+
         frame_count = dump_vars['frame_count']
         epoch_loss_history = dump_vars['epoch_loss_history'].tolist()
         running_loss = np.mean(epoch_loss_history[-5:])
