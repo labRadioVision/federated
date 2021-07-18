@@ -28,7 +28,7 @@ import datetime
 
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
-parser.add_argument('-resume', default=1, help="set 1 to resume from a previous simulation, or retrain on an update dataset (continual learning), 0 to start from the beginning", type=float)
+parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, or retrain on an update dataset (continual learning), 0 to start from the beginning", type=float)
 parser.add_argument("-MQTT", default="10.79.5.62", help="mqtt broker ex 192.168.1.3", type=str)
 parser.add_argument("-topic_PS", default="PS", help="FL with PS topic", type=str)
 parser.add_argument("-topic_post_model", default="post model", help="post models", type=str)
@@ -39,10 +39,11 @@ parser.add_argument('-eps', default=1, help="sets the mixing parameters for mode
 parser.add_argument("-local_rounds", default=4, help="number of local rounds", type=int)
 parser.add_argument('-target', default=0.1, help="sets the target loss to stop federation", type=float)
 parser.add_argument('-N', default=1, help="sets the max. number of neighbors per device per round in CFA", type=int)
-parser.add_argument('-samp', default=15, help="sets the number samples per device", type=int)
+parser.add_argument('-samp', default=30, help="sets the number samples per device", type=int)
 parser.add_argument('-batches', default=3, help="sets the number of batches per learning round", type=int)
-parser.add_argument('-batch_size', default=5, help="sets the batch size per learning round", type=int)
+parser.add_argument('-batch_size', default=10, help="sets the batch size per learning round", type=int)
 parser.add_argument('-input_data', default='data/mmwave_data_train.mat', help="sets the path to the federated dataset", type=str)
+parser.add_argument('-input_data_test', default='data/mmwave_data_test.mat', help="sets the path to the federated dataset", type=str)
 parser.add_argument('-devices', default=1, help="sets the tot number of devices", type=int)
 parser.add_argument('-run', default=0, help="sets the tot number of devices", type=int)
 parser.add_argument('-noniid_assignment', default=0, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
@@ -55,6 +56,7 @@ seed = 42
 devices = args.devices
 publishing = False
 filepath = args.input_data
+filepath2 = args.input_data_test
 local_rounds = args.local_rounds
 # batch_size = 5  # Size of batch taken from replay buffer
 batch_size = args.batch_size
@@ -367,9 +369,9 @@ if __name__ == "__main__":
     # create a data object (here radar data)
     # data_handle = MnistData(device_index, start_index, training_set_per_device, validation_train, 0)
     if args.noniid_assignment == 1:
-        data_handle = RadarData_tasks_mqtt(filepath, device_index, start_index, training_set_per_device, validation_train, validation_test)
+        data_handle = RadarData_tasks_mqtt(filepath, filepath2, device_index, start_index, training_set_per_device, validation_train, validation_test)
     else:
-        data_handle = RadarData_mqtt(filepath, device_index, start_index, training_set_per_device, validation_train, validation_test)
+        data_handle = RadarData_mqtt(filepath, filepath2, device_index, start_index, training_set_per_device, validation_train, validation_test)
     # create a consensus object (only for consensus)
     # cfa_consensus = CFA_process(device_index, args.N)
 

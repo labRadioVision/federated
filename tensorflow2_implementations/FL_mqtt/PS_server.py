@@ -1,17 +1,11 @@
 from __future__ import division
-from DataSets import MnistData
-from consensus.parameter_server_v2 import Parameter_Server
 # best use with PS active
-# from ReplayMemory import ReplayMemory
 import os
 import pickle
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras import models
-import glob
-import scipy.io as sio
-import math
 from matplotlib.pyplot import pause
 import time
 import numpy as np
@@ -29,8 +23,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-MQTT", default="10.79.5.62", help="mqtt broker ex 192.168.1.3", type=str)
 parser.add_argument("-topic_PS", default="PS", help="FL with PS topic", type=str)
 parser.add_argument("-topic_post_model", default="post model", help="post models", type=str)
-parser.add_argument('-devices', default=9, help="sets the number of total devices", type=int)
-parser.add_argument('-active_devices', default=2, help="sets the number of active devices", type=int)
+parser.add_argument('-devices', default=1, help="sets the number of total devices", type=int)
+parser.add_argument('-active_devices', default=1, help="sets the number of active devices", type=int)
 args = parser.parse_args()
 
 max_epochs = 500
@@ -42,7 +36,7 @@ seed = 42
 local_models_storage = [ [] for _ in range(devices) ]
 detObj = {}
 counter = 0
-n_outputs = 6
+n_outputs = 10
 training_end_signal = False
 active_check = np.zeros(devices, dtype=bool)
 scheduling_tx = np.zeros((devices, max_epochs*2), dtype=int)

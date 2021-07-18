@@ -6,7 +6,7 @@ import random
 # from tensorflow.keras.utils import to_categorical
 
 class RadarData_mqtt:
-    def __init__(self, filepath, device_index, start_samples, samples, validation_train, validation_test):
+    def __init__(self, filepath, filepath2, device_index, start_samples, samples, validation_train, validation_test, random_data_distribution=0):
         # filepath = 'data_mimoradar/data_mmwave_900.mat'
         self.filepath = filepath
         self.device_index = device_index
@@ -15,8 +15,8 @@ class RadarData_mqtt:
         self.validation_train = validation_train
         self.validation_test = validation_test
         # train data
-        database = sio.loadmat('data/mmwave_data_train_{}.mat'.format(device_index+1))
-        # database = sio.loadmat('dati_mimoradar/data_mmwave_450.mat')
+        # database = sio.loadmat('data/mmwave_data_train_{}.mat'.format(device_index+1))
+        database = sio.loadmat(filepath)
         x_train = database['mmwave_data_train_{}'.format(device_index+1)]
         y_train = database['label_train_{}'.format(device_index+1)]
         # y_train_t = to_categorical(y_train)
@@ -33,7 +33,8 @@ class RadarData_mqtt:
         self.x_train = np.expand_dims(self.x_train, 3) # DATA PARTITION
         self.y_train = np.squeeze(y_train[s_list])
         #test data
-        database = sio.loadmat('data/mmwave_data_test.mat')
+        # database = sio.loadmat('data/mmwave_data_test.mat')
+        database = sio.loadmat(filepath2)
         x_test = database['mmwave_data_test']
         y_test = database['label_test']
         self.y_test = np.squeeze(y_test[:self.validation_test])
