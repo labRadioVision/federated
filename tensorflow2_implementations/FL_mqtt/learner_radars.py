@@ -341,8 +341,12 @@ if __name__ == "__main__":
 
     # check for backup variables on start
     if os.path.isfile(checkpointpath1):
-        # backup the model and the model target
-        model = models.load_model(checkpointpath1)
+        if args.resume == 2: #continual learning
+            checkpointpath2 = 'results/matlab/model{}.h5'.format(device_index)
+            # backup the model and the model target
+            model = models.load_model(checkpointpath2)
+        else:
+            model = models.load_model(checkpointpath1)
         data_history = []
         label_history = []
         #local_model_parameters = np.load(outfile_models, allow_pickle=True)
