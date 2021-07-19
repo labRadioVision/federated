@@ -39,9 +39,9 @@ parser.add_argument('-eps', default=1, help="sets the mixing parameters for mode
 parser.add_argument("-local_rounds", default=4, help="number of local rounds", type=int)
 parser.add_argument('-target', default=0.1, help="sets the target loss to stop federation", type=float)
 parser.add_argument('-N', default=1, help="sets the max. number of neighbors per device per round in CFA", type=int)
-parser.add_argument('-samp', default=30, help="sets the number samples per device", type=int)
+parser.add_argument('-samp', default=15, help="sets the number samples per device", type=int)
 parser.add_argument('-batches', default=3, help="sets the number of batches per learning round", type=int)
-parser.add_argument('-batch_size', default=10, help="sets the batch size per learning round", type=int)
+parser.add_argument('-batch_size', default=5, help="sets the batch size per learning round", type=int)
 parser.add_argument('-input_data', default='data/mmwave_data_train.mat', help="sets the path to the federated dataset", type=str)
 parser.add_argument('-input_data_test', default='data/mmwave_data_test.mat', help="sets the path to the federated dataset", type=str)
 parser.add_argument('-devices', default=1, help="sets the tot number of devices", type=int)
@@ -325,7 +325,10 @@ if __name__ == "__main__":
     PS_mqtt_topic = args.topic_PS
     mqttc.subscribe(PS_mqtt_topic, qos=1)
     mqttc.message_callback_add(PS_mqtt_topic, PS_callback)
-    start_index = device_index*training_set_per_device
+    if args.resume == 2:
+        start_index = (device_index + 1) * training_set_per_device
+    else:
+        start_index = device_index*training_set_per_device
 
     checkpointpath1 = 'results/model{}.h5'.format(device_index)
     outfile = 'results/dump_train_variables{}.npz'.format(device_index)
