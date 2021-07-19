@@ -350,9 +350,15 @@ if __name__ == "__main__":
             # backup the model and the model target
             model = models.load_model(checkpointpath2)
             dump_vars = np.load(outfile2, allow_pickle=True)
+            frame_count = 0
+            epoch_loss_history = []
+            running_loss = math.inf
         else:
             model = models.load_model(checkpointpath1)
             dump_vars = np.load(outfile, allow_pickle=True)
+            frame_count = dump_vars['frame_count']
+            epoch_loss_history = dump_vars['epoch_loss_history'].tolist()
+            running_loss = np.mean(epoch_loss_history[-1:])
 
         data_history = []
         label_history = []
@@ -360,9 +366,7 @@ if __name__ == "__main__":
         #model.set_weights(local_model_parameters.tolist())
 
 
-        frame_count = dump_vars['frame_count']
-        epoch_loss_history = dump_vars['epoch_loss_history'].tolist()
-        running_loss = np.mean(epoch_loss_history[-5:])
+
         epoch_count = 0 # retraining
     else:
         model = create_q_model()
