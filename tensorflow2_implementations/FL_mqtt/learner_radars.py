@@ -28,7 +28,7 @@ import datetime
 
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
-parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, or retrain on an update dataset (continual learning), 0 to start from the beginning", type=float)
+parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, or 2 to retrain on an update dataset (continual learning), 0 to start from the beginning", type=float)
 parser.add_argument("-MQTT", default="10.79.5.62", help="mqtt broker ex 192.168.1.3", type=str)
 parser.add_argument("-topic_PS", default="PS", help="FL with PS topic", type=str)
 parser.add_argument("-topic_post_model", default="post model", help="post models", type=str)
@@ -44,7 +44,7 @@ parser.add_argument('-batches', default=3, help="sets the number of batches per 
 parser.add_argument('-batch_size', default=5, help="sets the batch size per learning round", type=int)
 parser.add_argument('-input_data', default='data/mmwave_data_train.mat', help="sets the path to the federated dataset", type=str)
 parser.add_argument('-input_data_test', default='data/mmwave_data_test.mat', help="sets the path to the federated dataset", type=str)
-parser.add_argument('-devices', default=1, help="sets the tot number of devices", type=int)
+parser.add_argument('-devices', default=9, help="sets the tot number of devices", type=int)
 parser.add_argument('-run', default=0, help="sets the tot number of devices", type=int)
 parser.add_argument('-noniid_assignment', default=0, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
 args = parser.parse_args()
