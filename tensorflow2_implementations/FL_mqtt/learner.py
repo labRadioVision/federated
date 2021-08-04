@@ -1,7 +1,7 @@
 from __future__ import division
 #from DataSets import MnistData
-from DataSets import RadarData
-from DataSets_tasks import RadarData_tasks
+from DataSets import RadarData_mqtt
+from DataSets_tasks import RadarData_tasks_mqtt
 #from consensus.consensus_v3 import CFA_process
 # best use with PS active
 # from ReplayMemory import ReplayMemory
@@ -28,7 +28,7 @@ import datetime
 
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
-parser.add_argument('-resume', default=1, help="set 1 to resume from a previous simulation, or retrain on an update dataset (continual learning), 0 to start from the beginning", type=float)
+parser.add_argument('-resume', default=0, help="set 1 to resume from a previous simulation, or 2 to retrain on an update dataset (continual learning), 0 to start from the beginning", type=float)
 parser.add_argument("-MQTT", default="10.79.5.62", help="mqtt broker ex 192.168.1.3", type=str)
 parser.add_argument("-topic_PS", default="PS", help="FL with PS topic", type=str)
 parser.add_argument("-topic_post_model", default="post model", help="post models", type=str)
@@ -42,8 +42,9 @@ parser.add_argument('-N', default=1, help="sets the max. number of neighbors per
 parser.add_argument('-samp', default=15, help="sets the number samples per device", type=int)
 parser.add_argument('-batches', default=3, help="sets the number of batches per learning round", type=int)
 parser.add_argument('-batch_size', default=5, help="sets the batch size per learning round", type=int)
-parser.add_argument('-input_data', default='data_mimoradar/data_mmwave_900.mat', help="sets the path to the federated dataset", type=str)
-parser.add_argument('-devices', default=1, help="sets the tot number of devices", type=int)
+parser.add_argument('-input_data', default='data/mmwave_data_train.mat', help="sets the path to the federated dataset", type=str)
+parser.add_argument('-input_data_test', default='data/mmwave_data_test.mat', help="sets the path to the federated dataset", type=str)
+parser.add_argument('-devices', default=9, help="sets the tot number of devices", type=int)
 parser.add_argument('-run', default=0, help="sets the tot number of devices", type=int)
 parser.add_argument('-noniid_assignment', default=0, help=" set 0 for iid assignment, 1 for non-iid random", type=int)
 args = parser.parse_args()
@@ -55,27 +56,25 @@ seed = 42
 devices = args.devices
 publishing = False
 filepath = args.input_data
+filepath2 = args.input_data_test
 local_rounds = args.local_rounds
 # batch_size = 5  # Size of batch taken from replay buffer
 batch_size = args.batch_size
 number_of_batches = args.batches
 training_set_per_device = args.samp # NUMBER OF TRAINING SAMPLES PER DEVICE
-validation_train = 900  # VALIDATION and training DATASET size
-validation_test = 900
+validation_train = 500  # VALIDATION and training DATASET size
+validation_test = 1000
 number_of_batches_for_validation = int(validation_test/batch_size)
 
 print("Number of batches for learning {}".format(number_of_batches))
 
-if (training_set_per_device > validation_train/devices):
-    training_set_per_device = math.floor(validation_train/devices)
-    print(training_set_per_device)
 
 if batch_size > training_set_per_device:
     batch_size = training_set_per_device
 
 #max_lag = number_of_batches*2 # consensus max delay 2= 2 epochs max
 
-n_outputs = 6  # 6 classes
+n_outputs = 10  # 6 classes
 max_epochs = 800
 
 validation_start = 1 # start validation in epochs
@@ -326,7 +325,10 @@ if __name__ == "__main__":
     PS_mqtt_topic = args.topic_PS
     mqttc.subscribe(PS_mqtt_topic, qos=1)
     mqttc.message_callback_add(PS_mqtt_topic, PS_callback)
-    start_index = device_index*training_set_per_device
+    if args.resume == 2:
+        start_index = (device_index + 1) * training_set_per_device
+    else:
+        start_index = device_index*training_set_per_device
 
     checkpointpath1 = 'results/model{}.h5'.format(device_index)
     outfile = 'results/dump_train_variables{}.npz'.format(device_index)
@@ -342,17 +344,29 @@ if __name__ == "__main__":
 
     # check for backup variables on start
     if os.path.isfile(checkpointpath1):
-        # backup the model and the model target
-        model = models.load_model(checkpointpath1)
+        if args.resume == 2: #continual learning
+            checkpointpath2 = 'results/matlab/model{}.h5'.format(device_index)
+            outfile2 = 'results/matlab/dump_train_variables{}.npz'.format(device_index)
+            # backup the model and the model target
+            model = models.load_model(checkpointpath2)
+            dump_vars = np.load(outfile2, allow_pickle=True)
+            frame_count = 0
+            epoch_loss_history = []
+            running_loss = math.inf
+        else:
+            model = models.load_model(checkpointpath1)
+            dump_vars = np.load(outfile, allow_pickle=True)
+            frame_count = dump_vars['frame_count']
+            epoch_loss_history = dump_vars['epoch_loss_history'].tolist()
+            running_loss = np.mean(epoch_loss_history[-1:])
+
         data_history = []
         label_history = []
         #local_model_parameters = np.load(outfile_models, allow_pickle=True)
         #model.set_weights(local_model_parameters.tolist())
 
-        dump_vars = np.load(outfile, allow_pickle=True)
-        frame_count = dump_vars['frame_count']
-        epoch_loss_history = dump_vars['epoch_loss_history'].tolist()
-        running_loss = np.mean(epoch_loss_history[-5:])
+
+
         epoch_count = 0 # retraining
     else:
         model = create_q_model()
@@ -370,9 +384,9 @@ if __name__ == "__main__":
     # create a data object (here radar data)
     # data_handle = MnistData(device_index, start_index, training_set_per_device, validation_train, 0)
     if args.noniid_assignment == 1:
-        data_handle = RadarData_tasks(filepath, device_index, start_index, training_set_per_device, validation_train, 0)
+        data_handle = RadarData_tasks_mqtt(filepath, filepath2, device_index, start_index, training_set_per_device, validation_train, validation_test)
     else:
-        data_handle = RadarData(filepath, device_index, start_index, training_set_per_device, validation_train, 0)
+        data_handle = RadarData_mqtt(filepath, filepath2, device_index, start_index, training_set_per_device, validation_train, validation_test)
     # create a consensus object (only for consensus)
     # cfa_consensus = CFA_process(device_index, args.N)
 

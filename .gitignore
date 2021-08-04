@@ -1,5 +1,24 @@
 
-*.mat
+*.sh
 *.npy
 *.npz
+*.mat
 *.h5
+*.npy
+tensorflow2_implementations/CIFAR10_dataset/federated_learning_keras_consensus_FL_CIFAR100_threading.py
+tensorflow2_implementations/CIFAR10_dataset/consensus/consensus_v3_threading.py
+tensorflow2_implementations/MNIST_dataset/.idea/.name
+tensorflow2_implementations/CIFAR10_dataset/federated_learning_keras_low_power_PS_MNIST.py
+tensorflow2_implementations/MNIST_dataset/federated_learning_keras_PS_MNIST.py
+tensorflow2_implementations/MNIST_dataset/federated_learning_keras_PS_MNIST.py
+tensorflow2_implementations/FL_mqtt/.idea/FL_mqtt.iml
+tensorflow2_implementations/FL_mqtt/.idea/.name
+*.iml
+tensorflow2_implementations/FL_radar_dataset/federated_learning_keras_low_power_PS_FL.py
+tensorflow2_implementations/FL_radar_dataset/federated_learning_keras_PS.py
+*.iml
+tensorflow2_implementations/FL_radar_dataset/federated_learning_keras_consensus_FL.py
+tensorflow2_implementations/FL_radar_dataset/federated_learning_keras_consensus_FL_sidelink.py
+tensorflow2_implementations/FL_radar_dataset/federated_learning_keras_PS.py
+*.iml
+*.zip
